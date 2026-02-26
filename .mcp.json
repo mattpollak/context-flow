@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "context-flow-search": {
+      "command": "uv",
+      "args": ["run", "--directory", "${CLAUDE_PLUGIN_ROOT}/server", "context-flow-server"]
+    }
+  }
+}

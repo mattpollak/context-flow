@@ -126,11 +126,24 @@ context-flow handles **session state** (what you're working on, where you left o
 | `CLAUDE.md` | Instructions for Claude | "Run tests with `npm test` before committing" |
 | **context-flow** | Session state + task switching | "Working on auth migration, next: add OAuth" |
 
+## MCP Server — Conversation Search
+
+The plugin includes an MCP server that indexes Claude Code conversation transcripts and provides full-text search. It runs automatically when the plugin is installed.
+
+**Tools provided:**
+- `search_history` — Full-text search across all indexed conversations (supports FTS5 syntax: AND, OR, NOT, "phrases")
+- `get_conversation` — Retrieve messages from a specific session by ID or slug
+- `list_sessions` — List recent sessions with metadata and filters
+- `reindex` — Force a complete re-index from scratch
+
+**How it works:** On startup, the server scans `~/.claude/projects/` for JSONL transcript files and incrementally indexes them into SQLite FTS5 at `~/.local/share/context-flow/index.db`. First run takes 3-5 seconds; subsequent runs process only new/modified files (~0.01s).
+
+**Requires:** Python 3.10+ and `uv` (used to run the server package in `server/`).
+
 ## Future Plans
 
 - **`/context-flow:complete`** — Mark a workstream as completed
-- **`/context-flow:search`** — Search past session conversations
-- **MCP server** — Python-based conversation indexer + semantic search (installable via `uvx`)
+- **Semantic search** — Optional `[semantic]` extra for embedding-based search
 
 ## Inspired By
 
