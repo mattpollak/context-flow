@@ -8,6 +8,10 @@ trap 'exit 0' ERR
 DATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/context-flow"
 REGISTRY="$DATA_DIR/workstreams.json"
 
+# Capture stdin (JSON with session_id from Claude Code)
+INPUT=$(cat)
+SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // empty' 2>/dev/null || true)
+
 # Initialize data directory (idempotent)
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/init-data-dir.sh" 2>/dev/null || true
 
@@ -48,6 +52,14 @@ else
   else
     CONTEXT="context-flow: Active workstream '${ACTIVE_NAME}' (no state file found — use /context-flow:save to create one)"
   fi
+fi
+
+# Write session marker for indexer (links session_id to active workstream)
+if [ -n "$SESSION_ID" ] && [ -n "$ACTIVE_NAME" ]; then
+  MARKER_DIR="$DATA_DIR/session-markers"
+  mkdir -p "$MARKER_DIR"
+  jq -n --arg ws "$ACTIVE_NAME" --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    '{workstream: $ws, timestamp: $ts}' > "$MARKER_DIR/${SESSION_ID}.json"
 fi
 
 # Output as JSON with additionalContext

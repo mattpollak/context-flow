@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .db import decode_project_dir, get_connection
+from .tagger import auto_tag_messages, auto_tag_session
 
 logger = logging.getLogger(__name__)
 
@@ -286,8 +287,14 @@ def index_all(
                     _upsert_session(conn, meta)
                     all_session_ids.add(meta["session_id"])
 
-                # Insert messages
+                # Insert messages and capture IDs for tagging
                 if messages:
+                    # Get the current max ID before inserting
+                    row = conn.execute(
+                        "SELECT COALESCE(MAX(id), 0) AS max_id FROM messages"
+                    ).fetchone()
+                    max_id_before = row["max_id"]
+
                     conn.executemany(
                         """INSERT INTO messages
                            (session_id, role, content, timestamp, model)
@@ -295,6 +302,10 @@ def index_all(
                         [(m["session_id"], m["role"], m["content"],
                           m["timestamp"], m["model"]) for m in messages]
                     )
+
+                    # Calculate inserted message IDs
+                    new_ids = list(range(max_id_before + 1, max_id_before + 1 + len(messages)))
+                    auto_tag_messages(conn, new_ids)
 
                 total_messages += len(messages)
                 total_files += 1
@@ -310,6 +321,13 @@ def index_all(
                        indexed_at = excluded.indexed_at""",
                 (str(filepath), file_size, file_size, now)
             )
+
+        # Auto-tag sessions that had new messages
+        for sid in all_session_ids:
+            auto_tag_session(conn, sid)
+
+        # Apply workstream tags from session markers
+        _apply_session_markers(conn, all_session_ids)
 
         conn.commit()
 
@@ -380,10 +398,71 @@ def _upsert_session(conn: sqlite3.Connection, meta: dict) -> None:
         )
 
 
+def _apply_session_markers(conn: sqlite3.Connection, session_ids: set[str]) -> None:
+    """Read workstream marker files and apply session tags."""
+    marker_dir = Path(
+        os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
+    ) / "context-flow" / "session-markers"
+
+    if not marker_dir.exists():
+        return
+
+    for sid in session_ids:
+        marker_path = marker_dir / f"{sid}.json"
+        if not marker_path.exists():
+            continue
+        try:
+            with open(marker_path) as f:
+                data = json.load(f)
+            workstream = data.get("workstream")
+            if workstream:
+                conn.execute(
+                    "INSERT OR IGNORE INTO session_tags (session_id, tag, source) VALUES (?, ?, ?)",
+                    (sid, f"workstream:{workstream}", "auto"),
+                )
+        except (json.JSONDecodeError, OSError):
+            logger.warning(f"Failed to read session marker: {marker_path}")
+
+
+def _apply_all_session_markers(conn: sqlite3.Connection) -> None:
+    """Scan all session markers and apply tags. Used during full reindex."""
+    marker_dir = Path(
+        os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
+    ) / "context-flow" / "session-markers"
+
+    if not marker_dir.exists():
+        return
+
+    for marker_path in marker_dir.glob("*.json"):
+        sid = marker_path.stem
+        # Only tag sessions that exist in the DB
+        exists = conn.execute(
+            "SELECT 1 FROM sessions WHERE session_id = ?", (sid,)
+        ).fetchone()
+        if not exists:
+            continue
+        try:
+            with open(marker_path) as f:
+                data = json.load(f)
+            workstream = data.get("workstream")
+            if workstream:
+                conn.execute(
+                    "INSERT OR IGNORE INTO session_tags (session_id, tag, source) VALUES (?, ?, ?)",
+                    (sid, f"workstream:{workstream}", "auto"),
+                )
+        except (json.JSONDecodeError, OSError):
+            logger.warning(f"Failed to read session marker: {marker_path}")
+
+
 def reindex(db_path: Path | str, transcript_root: Path | str | None = None) -> dict:
     """Force a full re-index by clearing all data and rebuilding."""
     conn = get_connection(db_path)
     try:
+        # Clear all message tags (message IDs change on re-insert, so manual
+        # message tags become orphaned). Session tags preserve manual entries
+        # since session_id is a stable UUID.
+        conn.execute("DELETE FROM message_tags")
+        conn.execute("DELETE FROM session_tags WHERE source = 'auto'")
         conn.execute("DELETE FROM messages")
         conn.execute("DELETE FROM sessions")
         conn.execute("DELETE FROM indexed_files")
@@ -393,4 +472,14 @@ def reindex(db_path: Path | str, transcript_root: Path | str | None = None) -> d
     finally:
         conn.close()
 
-    return index_all(db_path, transcript_root)
+    stats = index_all(db_path, transcript_root)
+
+    # Apply all session markers after full reindex
+    conn = get_connection(db_path)
+    try:
+        _apply_all_session_markers(conn)
+        conn.commit()
+    finally:
+        conn.close()
+
+    return stats

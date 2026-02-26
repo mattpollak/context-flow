@@ -40,6 +40,25 @@ CREATE INDEX IF NOT EXISTS idx_messages_session_id ON messages(session_id);
 CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp);
 CREATE INDEX IF NOT EXISTS idx_sessions_project_dir ON sessions(project_dir);
 
+CREATE TABLE IF NOT EXISTS message_tags (
+    message_id INTEGER NOT NULL,
+    tag TEXT NOT NULL,
+    source TEXT NOT NULL DEFAULT 'auto',
+    PRIMARY KEY (message_id, tag),
+    FOREIGN KEY (message_id) REFERENCES messages(id)
+);
+
+CREATE TABLE IF NOT EXISTS session_tags (
+    session_id TEXT NOT NULL,
+    tag TEXT NOT NULL,
+    source TEXT NOT NULL DEFAULT 'auto',
+    PRIMARY KEY (session_id, tag),
+    FOREIGN KEY (session_id) REFERENCES sessions(session_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_message_tags_tag ON message_tags(tag);
+CREATE INDEX IF NOT EXISTS idx_session_tags_tag ON session_tags(tag);
+
 CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
     content,
     content=messages,
