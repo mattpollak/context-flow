@@ -10,6 +10,7 @@ from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.session import ServerSession
 
 from .db import ensure_schema, get_connection, get_db_path
+from .formatter import format_conversation
 from .indexer import index_all, reindex as do_reindex
 
 logger = logging.getLogger(__name__)
@@ -124,7 +125,8 @@ def get_conversation(
     around_timestamp: str | None = None,
     roles: list[str] | None = None,
     limit: int = 200,
-) -> dict:
+    format: str = "markdown",
+) -> dict | str:
     """Retrieve messages from a specific conversation session.
 
     If the identifier is a slug that spans multiple sessions (via "continue"),
@@ -135,6 +137,7 @@ def get_conversation(
         around_timestamp: If provided, return ~20 messages centered on this timestamp
         roles: Filter by message roles (e.g. ["user", "assistant"]). Options: user, assistant, tool_summary, plan
         limit: Maximum messages to return (default 200)
+        format: Output format - "markdown" (human-readable, default) or "json" (structured data)
     """
     db_path = _get_db_path(ctx)
     conn = get_connection(db_path)
@@ -202,6 +205,9 @@ def get_conversation(
                     params
                 ).fetchall()
             ]
+
+        if format == "markdown":
+            return format_conversation(sessions, messages)
 
         return {
             "sessions": sessions,

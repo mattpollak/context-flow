@@ -1,17 +1,19 @@
 # context-flow
 
-A Claude Code plugin for workstream management, context persistence, and session continuity.
+A Claude Code plugin for workstream management, context persistence, and conversation history search.
 
-Tracks what you're working on across Claude Code sessions. Auto-loads your context on session start, warns when context is running low, and saves state before compaction. Switch between projects without losing your place.
+**The problem:** Claude Code sessions are stateless. Every new session starts from scratch — you re-explain what you're working on, re-describe your architecture, and repeat decisions you already made. If you juggle multiple projects, context-switching means writing notes by hand or hoping you remember where you left off. And all that knowledge Claude helped you build? Buried in transcript files with no way to find it again.
 
-## Features
+**context-flow fixes this.** It tracks what you're working on across sessions, auto-loads your context at startup, and indexes every conversation you've ever had with Claude Code — making it all searchable. Switch between projects without losing your place. Find that UX review from last week. Pick up exactly where you left off.
 
-- **Auto-load** — SessionStart hook injects your active workstream's state into every new session
-- **Context monitoring** — PostToolUse hook counts tool calls and warns at ~80 (approaching limit) and ~100 (critical)
-- **Auto-save on compaction** — PreCompact hook instructs Claude to save state before context compression
-- **5 slash commands** — `/context-flow:new`, `/context-flow:switch`, `/context-flow:park`, `/context-flow:list`, `/context-flow:save`
-- **Atomic saves** — State files use write-to-temp + rename with a one-deep `.bak` backup
-- **JSON registry** — `workstreams.json` parsed with `jq` for reliable cross-platform operation
+## What You Get
+
+- **Auto-loaded context** — Every session starts with your active workstream's state already in context. No more "let me catch you up on what we're doing."
+- **One-command project switching** — `/context-flow:switch auth-migration` saves your current work, loads the new project's state, and you're coding in seconds.
+- **Context exhaustion warnings** — Get warned at ~80 tool calls (approaching limit) and ~100 (critical) so you can save before compaction hits.
+- **Auto-save before compaction** — PreCompact hook ensures Claude saves your state before context is compressed.
+- **Full conversation history search** — MCP server indexes all your Claude Code transcripts into searchable SQLite FTS5. Find that architecture decision from two weeks ago.
+- **Auto-tagging** — Messages are automatically tagged by content type (UX reviews, plans, decisions, investigations) so high-value content is discoverable without remembering exact phrases.
 
 ## Prerequisites
 
@@ -26,57 +28,84 @@ Tracks what you're working on across Claude Code sessions. Auto-loads your conte
 
   # Other: https://jqlang.github.io/jq/download/
   ```
+- **Python 3.10+** and **`uv`** — Required for the MCP conversation search server
 
 ## Installation
 
 ```bash
-# Clone the repo
-git clone https://github.com/mattpollak/context-flow.git
+# Add the marketplace
+claude plugin marketplace add mattpollak/context-flow
 
-# Install as a local plugin
-claude plugin add ./context-flow
+# Install the plugin
+claude plugin install context-flow@context-flow
 ```
 
-Or test without installing:
+To verify it's installed:
 ```bash
-claude --plugin-dir ./context-flow
+claude plugin list
+```
+
+Start a new Claude Code session — you should see the SessionStart hook fire. If no workstreams exist yet, it will prompt you to create one.
+
+### Testing without installing
+
+```bash
+claude --plugin-dir /path/to/context-flow
 ```
 
 ## Usage
 
-### Create a workstream
-```
-/context-flow:new api-refactor Modernizing the REST API layer
-```
+### Slash commands
 
-### List workstreams
-```
-/context-flow:list
-```
+| Command | What it does |
+|---|---|
+| `/context-flow:new api-refactor Modernizing the REST API` | Create a new workstream |
+| `/context-flow:list` | List all workstreams grouped by status |
+| `/context-flow:save` | Save current workstream state to disk |
+| `/context-flow:switch auth-migration` | Save current, load a different workstream |
+| `/context-flow:park` | Save and deactivate the current workstream |
 
-### Save current state
-```
-/context-flow:save
-```
-
-### Switch to a different workstream
-```
-/context-flow:switch auth-migration
-```
-
-### Park current workstream
-```
-/context-flow:park
-```
-
-### Natural language triggers
+### Natural language
 
 The skills also respond to natural language:
 - "new workstream", "start workstream", "create workstream"
-- "switch to X", "resume workstream", "load workstream", "work on X"
-- "save context", "save state", "save session", "persist context"
-- "park this", "park workstream", "pause workstream", "shelve this"
+- "switch to X", "resume workstream", "work on X"
+- "save context", "save state", "save session"
+- "park this", "park workstream", "pause workstream"
 - "list workstreams", "show workstreams"
+
+### Conversation search
+
+The MCP server provides tools that Claude can use directly during your session:
+
+| Tool | What it does |
+|---|---|
+| `search_history` | Full-text search across all conversations (FTS5: AND, OR, NOT, "phrases") |
+| `get_conversation` | Retrieve messages from a session by UUID or slug. Slug chains (via "continue") return all sessions combined chronologically. |
+| `list_sessions` | List recent sessions with metadata, filterable by project, date, and tags |
+| `tag_message` | Manually tag a message for future discoverability |
+| `tag_session` | Manually tag a session (e.g., associate with a workstream) |
+| `list_tags` | List all tags with counts — see what's been auto-detected |
+| `reindex` | Force a complete re-index from scratch |
+
+**Tag filtering:** Both `search_history` and `list_sessions` accept an optional `tags` parameter to narrow results. For example, searching for "lineup" with `tags: ["review:ux"]` returns only UX review messages that mention lineups.
+
+**Auto-tags applied during indexing:**
+
+| Tag | What it detects |
+|---|---|
+| `review:ux` | Substantial UX/usability review content |
+| `review:architecture` | Architecture or system design reviews |
+| `review:code` | Code quality reviews |
+| `review:security` | Security reviews or audits |
+| `plan` | Implementation plans (plan-mode messages or structured phase/implementation docs) |
+| `decision` | Architectural or approach decisions |
+| `investigation` | Root cause analysis and debugging findings |
+| `insight` | Messages with `★ Insight` markers |
+| `has:browser` | Session used browser/Playwright tools |
+| `has:tests` | Session ran tests (pytest, vitest, etc.) |
+| `has:deploy` | Session involved deployment (ssh, docker, etc.) |
+| `has:planning` | Session used Claude Code's plan mode |
 
 ## Data Storage
 
@@ -84,16 +113,20 @@ Data is stored at `${XDG_CONFIG_HOME:-$HOME/.config}/context-flow/`:
 
 ```
 ~/.config/context-flow/
-├── workstreams.json          # Central registry
-├── workstreams/
-│   ├── api-refactor/
-│   │   ├── state.md          # ~80 lines, auto-loaded on session start
-│   │   ├── state.md.bak      # One-deep backup (previous version)
-│   │   ├── plan.md           # Optional, loaded on /switch
-│   │   └── architecture.md   # Optional, loaded on /switch
-│   └── ...
-└── parking-lot.md            # Cross-project ideas
+├── workstreams.json              # Central registry
+├── parking-lot.md                # Cross-project ideas
+├── session-markers/              # Links session IDs to workstreams (auto)
+│   └── <session-id>.json
+└── workstreams/
+    ├── api-refactor/
+    │   ├── state.md              # ~80 lines, auto-loaded on session start
+    │   ├── state.md.bak          # One-deep backup (previous version)
+    │   ├── plan.md               # Optional, loaded on /switch
+    │   └── architecture.md       # Optional, loaded on /switch
+    └── ...
 ```
+
+The conversation search index lives at `~/.local/share/context-flow/index.db` (SQLite, WAL mode).
 
 ## How It Works
 
@@ -101,7 +134,7 @@ Data is stored at `${XDG_CONFIG_HOME:-$HOME/.config}/context-flow/`:
 
 | Hook | Event | What it does |
 |---|---|---|
-| `session-start.sh` | SessionStart | Reads registry, injects active workstream's `state.md` into context |
+| `session-start.sh` | SessionStart | Reads registry, injects active workstream's `state.md` into context. Writes session marker linking session ID to active workstream. |
 | `context-monitor.sh` | PostToolUse | Counts tool calls, warns at 80 and 100 |
 | `pre-compact-save.sh` | PreCompact | Instructs Claude to save state before compression |
 | `session-end.sh` | SessionEnd | Cleans up temp files, updates `last_touched` timestamp |
@@ -116,6 +149,10 @@ State files (`state.md`) are kept under 80 lines and contain:
 
 Saves use an atomic three-step process: write new content to a temp file (`state.md.new`), back up the current file (`state.md` → `state.md.bak`, overwriting any previous backup), then rename the temp file into place (`state.md.new` → `state.md`). Each step overwrites its target, so stale files from a previous interrupted save are cleaned up automatically.
 
+### MCP server
+
+On startup, the server scans `~/.claude/projects/` for JSONL transcript files and incrementally indexes them into SQLite FTS5. First run takes 3-5 seconds; subsequent runs process only new/modified files (~0.01s). Auto-tagging runs during indexing — keyword heuristics classify messages by content type (reviews, plans, decisions, etc.) and sessions by activity (testing, deployment, browser usage).
+
 ## Complementary Systems
 
 context-flow handles **session state** (what you're working on, where you left off). It complements, not replaces, Claude Code's built-in systems:
@@ -124,26 +161,21 @@ context-flow handles **session state** (what you're working on, where you left o
 |---|---|---|
 | Auto-memory (`MEMORY.md`) | Learnings about the codebase | "Use TypeORM migrations for schema changes" |
 | `CLAUDE.md` | Instructions for Claude | "Run tests with `npm test` before committing" |
-| **context-flow** | Session state + task switching | "Working on auth migration, next: add OAuth" |
+| **context-flow** | Session state + task switching + history search | "Working on auth migration, next: add OAuth" |
 
-## MCP Server — Conversation Search
+## Migrating from Manual Workstreams
 
-The plugin includes an MCP server that indexes Claude Code conversation transcripts and provides full-text search. It runs automatically when the plugin is installed.
+If you have an existing manual workstream system with a `WORKSTREAMS.md` registry:
 
-**Tools provided:**
-- `search_history` — Full-text search across all indexed conversations (supports FTS5 syntax: AND, OR, NOT, "phrases")
-- `get_conversation` — Retrieve messages from a specific session by ID or slug
-- `list_sessions` — List recent sessions with metadata and filters
-- `reindex` — Force a complete re-index from scratch
+```bash
+# Preview what the migration will do
+bash /path/to/context-flow/scripts/migrate-from-workstreams.sh --dry-run
 
-**How it works:** On startup, the server scans `~/.claude/projects/` for JSONL transcript files and incrementally indexes them into SQLite FTS5 at `~/.local/share/context-flow/index.db`. First run takes 3-5 seconds; subsequent runs process only new/modified files (~0.01s).
+# Run the migration
+bash /path/to/context-flow/scripts/migrate-from-workstreams.sh
+```
 
-**Requires:** Python 3.10+ and `uv` (used to run the server package in `server/`).
-
-## Future Plans
-
-- **`/context-flow:complete`** — Mark a workstream as completed
-- **Semantic search** — Optional `[semantic]` extra for embedding-based search
+The migration is non-destructive — it copies files to the new location without deleting originals.
 
 ## Inspired By
 
