@@ -1,0 +1,14 @@
+{
+  "name": "context-flow",
+  "owner": {
+    "name": "mattpollak"
+  },
+  "plugins": [
+    {
+      "name": "context-flow",
+      "source": "./",
+      "description": "Workstream management, context persistence, and session history search for Claude Code",
+      "version": "0.1.0"
+    }
+  ]
+}
