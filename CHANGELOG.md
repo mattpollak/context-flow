@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.3.0] - 2026-02-27
+
+### Added
+- **`read-data-file.sh`** — generic helper script to read files from the data directory, eliminating `${XDG_CONFIG_HOME:-...}` parameter substitution prompts
+
+### Changed
+- **List skill** — uses `read-data-file.sh` instead of inline `$DATA_DIR` with `${}`-based default, removing permission prompts
+- **README copyediting** — clarified wording in intro, tag filtering example, and migration section
+
 ## [0.2.0] - 2026-02-26
 
 Security hardening, architecture improvements, and workflow polish based on security + architecture reviews.

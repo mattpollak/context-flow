@@ -4,7 +4,7 @@ A Claude Code plugin for workstream management, context persistence, and convers
 
 **The problem:** Claude Code sessions are stateless. Every new session starts from scratch — you re-explain what you're working on, re-describe your architecture, and repeat decisions you already made. If you juggle multiple projects, context-switching means writing notes by hand or hoping you remember where you left off. And all that knowledge Claude helped you build? Buried in transcript files with no way to find it again.
 
-**context-flow fixes this.** It tracks what you're working on across sessions, auto-loads your context at startup, and indexes every conversation you've ever had with Claude Code — making it all searchable. Switch between projects without losing your place. Find that UX review from last week. Pick up exactly where you left off.
+**context-flow fixes this.** It tracks what you're working on across sessions, auto-loads your most recent context at startup, and indexes every conversation you've ever had with Claude Code — making it all searchable. Switch between projects without losing your place. Find that UX review from last week. Pick up exactly where you left off.
 
 ## What You Get
 
@@ -124,7 +124,7 @@ The MCP server provides tools that Claude can use directly during your session:
 | `list_tags` | List all tags with counts — see what's been auto-detected |
 | `reindex` | Force a complete re-index from scratch |
 
-**Tag filtering:** Both `search_history` and `list_sessions` accept an optional `tags` parameter to narrow results. For example, searching for "lineup" with `tags: ["review:ux"]` returns only UX review messages that mention lineups.
+**Tag filtering:** Both `search_history` and `list_sessions` accept an optional `tags` parameter to narrow results. For example, searching for "splash page" with `tags: ["review:ux"]` returns only UX review messages that mention splash page.
 
 **Auto-tags applied during indexing:**
 
@@ -201,7 +201,7 @@ context-flow handles **session state** (what you're working on, where you left o
 
 ## Migrating from Manual Workstreams
 
-If you have an existing manual workstream system with a `WORKSTREAMS.md` registry:
+If you have - and you almost certainly don't, unless you're me - an existing manual workstream system with a `WORKSTREAMS.md` registry:
 
 ```bash
 # Preview what the migration will do
