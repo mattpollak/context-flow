@@ -71,6 +71,18 @@ Without this, you'll see a permission prompt on every `/context-flow:save`, `/co
 
 **Security note:** The `:*` suffix matches everything after the script path, which in theory includes shell metacharacters (`;`, `&&`, `|`). This is inherent to all wildcard Bash permissions — `Bash(git commit:*)` has the same property. The practical risk is low: commands are generated from hardcoded skill templates, and the only variable part (the workstream name) is validated by the scripts themselves (`[a-z0-9-]` only). The real attack surface would be prompt injection convincing Claude to generate a crafted command, which is a broader threat model than permission patterns can address.
 
+### Updating
+
+```bash
+# Pull latest from the marketplace
+claude plugin marketplace update context-flow
+
+# Update the plugin
+claude plugin update context-flow@context-flow
+```
+
+Restart Claude Code after updating to apply changes.
+
 ### Testing without installing
 
 ```bash
