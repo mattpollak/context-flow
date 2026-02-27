@@ -47,6 +47,30 @@ claude plugin list
 
 Start a new Claude Code session — you should see the SessionStart hook fire. If no workstreams exist yet, it will prompt you to create one.
 
+### Recommended permission setup
+
+When you save, switch, or park a workstream, Claude runs helper scripts bundled with the plugin (e.g., `complete-save.sh` to atomically rotate state files). By default, Claude Code will prompt you to approve each of these shell commands individually.
+
+To auto-approve the plugin's scripts, add this pattern to `~/.claude/settings.json`:
+
+```json
+{
+  "permissions": {
+    "allow": [
+      "Bash(bash */context-flow/*/scripts/*:*)"
+    ]
+  }
+}
+```
+
+**Why this pattern?** Marketplace plugins are cached at `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/`. The pattern `*/context-flow/*/scripts/*:*` matches any `bash` command targeting a `.sh` script inside the plugin's `scripts/` directory, regardless of version number or cache location. The `:*` suffix is a prefix-match operator — it allows any arguments after the script path (e.g., the workstream name passed to `complete-save.sh`).
+
+**What this allows:** Only `bash` commands where the script path passes through a `context-flow/.../scripts/` directory. It does not grant blanket shell access — commands like `rm`, `curl`, or `bash` with arbitrary paths are unaffected.
+
+Without this, you'll see a permission prompt on every `/context-flow:save`, `/context-flow:switch`, and `/context-flow:park`. You can also approve them one at a time using "always allow" when prompted — the pattern above just does it upfront.
+
+**Security note:** The `:*` suffix matches everything after the script path, which in theory includes shell metacharacters (`;`, `&&`, `|`). This is inherent to all wildcard Bash permissions — `Bash(git commit:*)` has the same property. The practical risk is low: commands are generated from hardcoded skill templates, and the only variable part (the workstream name) is validated by the scripts themselves (`[a-z0-9-]` only). The real attack surface would be prompt injection convincing Claude to generate a crafted command, which is a broader threat model than permission patterns can address.
+
 ### Testing without installing
 
 ```bash
