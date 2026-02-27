@@ -30,8 +30,8 @@ Write an updated state file to: ${STATE_FILE}
 
 Use atomic overwrite:
 1. Write content to ${STATE_FILE}.new
-2. mv ${STATE_FILE} ${STATE_FILE}.bak (if exists)
-3. mv ${STATE_FILE}.new ${STATE_FILE}
+2. command mv ${STATE_FILE} ${STATE_FILE}.bak (if exists)
+3. command mv ${STATE_FILE}.new ${STATE_FILE}
 
 The state file must be under 80 lines and include:
 - Current status (what was being worked on)
@@ -40,7 +40,7 @@ The state file must be under 80 lines and include:
 - Any blockers or important context that would be lost
 
 Also update last_touched in ${REGISTRY} using:
-jq --arg name "${ACTIVE_NAME}" --arg date "\$(date +%Y-%m-%d)" '.workstreams[\$name].last_touched = \$date' "${REGISTRY}" > "${REGISTRY}.tmp" && mv "${REGISTRY}.tmp" "${REGISTRY}"
+jq --arg name "${ACTIVE_NAME}" --arg date "\$(date +%Y-%m-%d)" '.workstreams[\$name].last_touched = \$date' "${REGISTRY}" > "${REGISTRY}.tmp" && command mv "${REGISTRY}.tmp" "${REGISTRY}"
 EOF
 
 exit 0

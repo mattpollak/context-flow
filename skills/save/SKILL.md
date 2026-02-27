@@ -29,8 +29,8 @@ DATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/context-flow"
 
    # Atomic swap with backup
    [ -f "$DATA_DIR/workstreams/<name>/state.md" ] && \
-     mv "$DATA_DIR/workstreams/<name>/state.md" "$DATA_DIR/workstreams/<name>/state.md.bak"
-   mv "$DATA_DIR/workstreams/<name>/state.md.new" "$DATA_DIR/workstreams/<name>/state.md"
+     command mv "$DATA_DIR/workstreams/<name>/state.md" "$DATA_DIR/workstreams/<name>/state.md.bak"
+   command mv "$DATA_DIR/workstreams/<name>/state.md.new" "$DATA_DIR/workstreams/<name>/state.md"
    ```
 
 3. **State file content.** The state file MUST stay under 80 lines. Include these sections:
@@ -63,7 +63,14 @@ DATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/context-flow"
    jq --arg name "<name>" --arg date "$(date +%Y-%m-%d)" \
       '.workstreams[$name].last_touched = $date' \
       "$DATA_DIR/workstreams.json" > "$DATA_DIR/workstreams.json.tmp" && \
-   mv "$DATA_DIR/workstreams.json.tmp" "$DATA_DIR/workstreams.json"
+   command mv "$DATA_DIR/workstreams.json.tmp" "$DATA_DIR/workstreams.json"
    ```
 
-5. **Confirm.** Tell the user the state was saved. Mention the backup file exists at `state.md.bak`.
+5. **Reset context monitor counter.** After saving, reset the tool call counter so the context exhaustion warnings stop until the next threshold:
+   ```bash
+   for f in ${TMPDIR:-/tmp}/context-flow-*.count; do
+     [ -f "$f" ] && echo "0" > "$f"
+   done
+   ```
+
+6. **Confirm.** Tell the user the state was saved. Mention the backup file exists at `state.md.bak`.

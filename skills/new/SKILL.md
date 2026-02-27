@@ -41,7 +41,7 @@ DATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/context-flow"
       --arg dir "$(pwd)" \
       '.workstreams[$name] = {status: "active", description: $desc, created: $date, last_touched: $date, project_dir: $dir}' \
       "$DATA_DIR/workstreams.json" > "$DATA_DIR/workstreams.json.tmp" && \
-   mv "$DATA_DIR/workstreams.json.tmp" "$DATA_DIR/workstreams.json"
+   command mv "$DATA_DIR/workstreams.json.tmp" "$DATA_DIR/workstreams.json"
    ```
 
 8. **Confirm.** Tell the user the workstream was created and is now active. Show the path to the state file.

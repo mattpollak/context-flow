@@ -40,7 +40,7 @@ if [ -n "$ACTIVE_NAME" ]; then
   jq --arg name "$ACTIVE_NAME" --arg date "$TODAY" \
     '.workstreams[$name].last_touched = $date' \
     "$REGISTRY" > "$REGISTRY.tmp" 2>/dev/null && \
-  mv "$REGISTRY.tmp" "$REGISTRY" 2>/dev/null || true
+  command mv "$REGISTRY.tmp" "$REGISTRY" 2>/dev/null || true
 fi
 
 exit 0

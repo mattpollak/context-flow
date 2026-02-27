@@ -26,8 +26,8 @@ DATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/context-flow"
    a. Determine its state file path: `$DATA_DIR/workstreams/<active-name>/state.md`
    b. Write an updated `state.md` using atomic overwrite:
       - Write current status, key decisions, and next steps to `state.md.new`
-      - `mv state.md state.md.bak` (if state.md exists)
-      - `mv state.md.new state.md`
+      - `command mv state.md state.md.bak` (if state.md exists)
+      - `command mv state.md.new state.md`
    c. Keep the content under 80 lines. Include: current status (what was being worked on), key decisions made this session, next steps.
    d. Set the old workstream's status to `"parked"` and update `last_touched` in the registry.
 
@@ -39,7 +39,7 @@ DATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/context-flow"
        (.workstreams[$new].status = "active") |
        (.workstreams[$new].last_touched = $date)' \
       "$DATA_DIR/workstreams.json" > "$DATA_DIR/workstreams.json.tmp" && \
-   mv "$DATA_DIR/workstreams.json.tmp" "$DATA_DIR/workstreams.json"
+   command mv "$DATA_DIR/workstreams.json.tmp" "$DATA_DIR/workstreams.json"
    ```
 
 5. **Load target context.** Read and display the target workstream's files:
@@ -49,4 +49,11 @@ DATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/context-flow"
 
 6. **Change directory.** If the target workstream has a `project_dir` set in the registry and that directory exists, tell the user: "This workstream's project directory is `<path>`. You may want to `cd` there."
 
-7. **Summarize.** Tell the user what workstream is now active and give a brief summary of its current status from state.md.
+7. **Reset context monitor counter.** After saving, reset the tool call counter:
+   ```bash
+   for f in ${TMPDIR:-/tmp}/context-flow-*.count; do
+     [ -f "$f" ] && echo "0" > "$f"
+   done
+   ```
+
+8. **Summarize.** Tell the user what workstream is now active and give a brief summary of its current status from state.md.

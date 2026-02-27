@@ -22,7 +22,7 @@ DATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/context-flow"
 
 2. **Save state first.** Before parking, save the current state using the same procedure as `/context-flow:save`:
    - Write updated `state.md.new` with current status, key decisions, next steps (under 80 lines)
-   - Atomic swap: `mv state.md state.md.bak`, `mv state.md.new state.md`
+   - Atomic swap: `command mv state.md state.md.bak`, `command mv state.md.new state.md`
 
 3. **Update registry.** Set the workstream's status to `"parked"` and update `last_touched`:
    ```bash
@@ -30,7 +30,14 @@ DATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/context-flow"
       '(.workstreams[$name].status = "parked") |
        (.workstreams[$name].last_touched = $date)' \
       "$DATA_DIR/workstreams.json" > "$DATA_DIR/workstreams.json.tmp" && \
-   mv "$DATA_DIR/workstreams.json.tmp" "$DATA_DIR/workstreams.json"
+   command mv "$DATA_DIR/workstreams.json.tmp" "$DATA_DIR/workstreams.json"
    ```
 
-4. **Confirm.** Tell the user the workstream has been parked. Mention they can resume it later with `/context-flow:switch <name>`.
+4. **Reset context monitor counter.** After saving, reset the tool call counter:
+   ```bash
+   for f in ${TMPDIR:-/tmp}/context-flow-*.count; do
+     [ -f "$f" ] && echo "0" > "$f"
+   done
+   ```
+
+5. **Confirm.** Tell the user the workstream has been parked. Mention they can resume it later with `/context-flow:switch <name>`.
