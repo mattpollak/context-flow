@@ -15,6 +15,11 @@ fi
 
 SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // empty' 2>/dev/null || true)
 
+# Validate session ID format (UUID hex + dashes only)
+if [ -n "$SESSION_ID" ] && ! [[ "$SESSION_ID" =~ ^[a-f0-9-]+$ ]]; then
+  SESSION_ID=""
+fi
+
 # Clean up counter file
 if [ -n "$SESSION_ID" ]; then
   rm -f "${TMPDIR:-/tmp}/context-flow-${SESSION_ID}.count"

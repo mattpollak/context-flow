@@ -2,6 +2,7 @@
 
 import re
 import sqlite3
+from collections.abc import Callable
 
 # Minimum content length to be considered "substantial"
 SUBSTANTIAL_THRESHOLD = 500
@@ -85,7 +86,7 @@ def _check_insight(role: str, content: str) -> bool:
 
 
 # Tag name -> check function
-MESSAGE_TAG_RULES: list[tuple[str, callable]] = [
+MESSAGE_TAG_RULES: list[tuple[str, Callable[[str, str], bool]]] = [
     ("review:ux", _check_review_ux),
     ("review:architecture", _check_review_architecture),
     ("review:code", _check_review_code),
@@ -134,7 +135,7 @@ def _check_has_planning(messages: list[dict]) -> bool:
     return any(m["role"] == "plan" for m in messages)
 
 
-SESSION_TAG_RULES: list[tuple[str, callable]] = [
+SESSION_TAG_RULES: list[tuple[str, Callable[[list[dict]], bool]]] = [
     ("has:browser", _check_has_browser),
     ("has:tests", _check_has_tests),
     ("has:deploy", _check_has_deploy),
@@ -173,8 +174,9 @@ def auto_tag_messages(conn: sqlite3.Connection, message_ids: list[int]) -> int:
 
 def auto_tag_session(conn: sqlite3.Connection, session_id: str) -> int:
     """Apply auto-tags to a session based on its messages. Returns count of tags added."""
+    # Only fetch roles that session rules actually inspect (tool_summary + plan)
     rows = conn.execute(
-        "SELECT role, content FROM messages WHERE session_id = ?",
+        "SELECT role, content FROM messages WHERE session_id = ? AND role IN ('tool_summary', 'plan')",
         (session_id,),
     ).fetchall()
     messages = [dict(r) for r in rows]

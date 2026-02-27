@@ -18,6 +18,11 @@ if [ -z "$SESSION_ID" ]; then
   exit 0
 fi
 
+# Validate session ID format (UUID hex + dashes only)
+if ! [[ "$SESSION_ID" =~ ^[a-f0-9-]+$ ]]; then
+  exit 0
+fi
+
 COUNTER_FILE="${TMPDIR:-/tmp}/context-flow-${SESSION_ID}.count"
 
 # Increment counter atomically

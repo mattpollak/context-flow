@@ -3,12 +3,16 @@
 import json
 import logging
 import os
+import re
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
 from .db import decode_project_dir, get_connection
 from .tagger import auto_tag_messages, auto_tag_session
+
+# Matches UUID hex strings with dashes (e.g. "70620f58-abcd-1234-ef56-789012345678")
+_UUID_RE = re.compile(r"^[a-f0-9][a-f0-9-]+[a-f0-9]$")
 
 logger = logging.getLogger(__name__)
 
@@ -398,38 +402,46 @@ def _upsert_session(conn: sqlite3.Connection, meta: dict) -> None:
         )
 
 
-def _apply_session_markers(conn: sqlite3.Connection, session_ids: set[str]) -> None:
-    """Read workstream marker files and apply session tags."""
-    marker_dir = Path(
+def _get_marker_dir() -> Path:
+    """Return the session markers directory path."""
+    return Path(
         os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
     ) / "context-flow" / "session-markers"
 
+
+def _read_and_apply_marker(conn: sqlite3.Connection, marker_path: Path, sid: str) -> None:
+    """Read a single session marker file and apply its workstream tag."""
+    # Validate session ID format to prevent path traversal
+    if not _UUID_RE.match(sid):
+        return
+    try:
+        with open(marker_path) as f:
+            data = json.load(f)
+        workstream = data.get("workstream")
+        if workstream:
+            conn.execute(
+                "INSERT OR IGNORE INTO session_tags (session_id, tag, source) VALUES (?, ?, ?)",
+                (sid, f"workstream:{workstream}", "auto"),
+            )
+    except (json.JSONDecodeError, OSError):
+        logger.warning(f"Failed to read session marker: {marker_path}")
+
+
+def _apply_session_markers(conn: sqlite3.Connection, session_ids: set[str]) -> None:
+    """Read workstream marker files and apply session tags."""
+    marker_dir = _get_marker_dir()
     if not marker_dir.exists():
         return
 
     for sid in session_ids:
         marker_path = marker_dir / f"{sid}.json"
-        if not marker_path.exists():
-            continue
-        try:
-            with open(marker_path) as f:
-                data = json.load(f)
-            workstream = data.get("workstream")
-            if workstream:
-                conn.execute(
-                    "INSERT OR IGNORE INTO session_tags (session_id, tag, source) VALUES (?, ?, ?)",
-                    (sid, f"workstream:{workstream}", "auto"),
-                )
-        except (json.JSONDecodeError, OSError):
-            logger.warning(f"Failed to read session marker: {marker_path}")
+        if marker_path.exists():
+            _read_and_apply_marker(conn, marker_path, sid)
 
 
 def _apply_all_session_markers(conn: sqlite3.Connection) -> None:
     """Scan all session markers and apply tags. Used during full reindex."""
-    marker_dir = Path(
-        os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
-    ) / "context-flow" / "session-markers"
-
+    marker_dir = _get_marker_dir()
     if not marker_dir.exists():
         return
 
@@ -439,19 +451,8 @@ def _apply_all_session_markers(conn: sqlite3.Connection) -> None:
         exists = conn.execute(
             "SELECT 1 FROM sessions WHERE session_id = ?", (sid,)
         ).fetchone()
-        if not exists:
-            continue
-        try:
-            with open(marker_path) as f:
-                data = json.load(f)
-            workstream = data.get("workstream")
-            if workstream:
-                conn.execute(
-                    "INSERT OR IGNORE INTO session_tags (session_id, tag, source) VALUES (?, ?, ?)",
-                    (sid, f"workstream:{workstream}", "auto"),
-                )
-        except (json.JSONDecodeError, OSError):
-            logger.warning(f"Failed to read session marker: {marker_path}")
+        if exists:
+            _read_and_apply_marker(conn, marker_path, sid)
 
 
 def reindex(db_path: Path | str, transcript_root: Path | str | None = None) -> dict:

@@ -16,7 +16,8 @@ fi
 # Find active workstream
 ACTIVE_NAME=$(jq -r '[.workstreams | to_entries[] | select(.value.status == "active")] | first | .key // empty' "$REGISTRY" 2>/dev/null || true)
 
-if [ -z "$ACTIVE_NAME" ]; then
+# Validate workstream name format (lowercase alphanum + dashes)
+if [ -z "$ACTIVE_NAME" ] || ! [[ "$ACTIVE_NAME" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
   exit 0
 fi
 

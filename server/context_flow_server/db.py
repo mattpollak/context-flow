@@ -87,7 +87,7 @@ def get_db_path() -> Path:
     """Return the database path, respecting XDG_DATA_HOME."""
     data_home = os.environ.get("XDG_DATA_HOME", os.path.expanduser("~/.local/share"))
     db_dir = Path(data_home) / "context-flow"
-    db_dir.mkdir(parents=True, exist_ok=True)
+    db_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
     return db_dir / "index.db"
 
 
@@ -97,6 +97,7 @@ def get_connection(db_path: Path | str) -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA busy_timeout=5000")
+    conn.execute("PRAGMA foreign_keys=ON")
     return conn
 
 

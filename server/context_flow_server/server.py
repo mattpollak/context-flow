@@ -1,6 +1,7 @@
 """FastMCP server with conversation history search tools."""
 
 import logging
+import sqlite3
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -42,8 +43,28 @@ mcp = FastMCP(
 )
 
 
+MAX_LIMIT = 500
+MAX_TAGS = 50
+MAX_TAG_LENGTH = 200
+
+
 def _get_db_path(ctx: Context[ServerSession, AppContext]) -> Path:
     return ctx.request_context.lifespan_context.db_path
+
+
+def _clamp_limit(limit: int, default: int = 10) -> int:
+    """Clamp limit to a reasonable range."""
+    return min(max(limit, 1), MAX_LIMIT)
+
+
+def _validate_tags(tags: list[str]) -> str | None:
+    """Validate tag list. Returns error string or None."""
+    if len(tags) > MAX_TAGS:
+        return f"Too many tags (max {MAX_TAGS})"
+    for tag in tags:
+        if len(tag) > MAX_TAG_LENGTH:
+            return f"Tag too long (max {MAX_TAG_LENGTH} chars): {tag[:50]}..."
+    return None
 
 
 @mcp.tool()
@@ -66,6 +87,7 @@ def search_history(
         date_to: Filter messages up to this date (ISO format)
         tags: Filter to messages with ALL of these tags (e.g. ["review:ux", "insight"])
     """
+    limit = _clamp_limit(limit)
     db_path = _get_db_path(ctx)
     conn = get_connection(db_path)
 
@@ -112,7 +134,10 @@ def search_history(
             LIMIT ?
         """
 
-        rows = conn.execute(sql, params).fetchall()
+        try:
+            rows = conn.execute(sql, params).fetchall()
+        except sqlite3.OperationalError as e:
+            return [{"error": f"Invalid search query: {e}. FTS5 syntax: use AND, OR, NOT, \"quoted phrases\"."}]
         return [dict(row) for row in rows]
     finally:
         conn.close()
@@ -139,6 +164,9 @@ def get_conversation(
         limit: Maximum messages to return (default 200)
         format: Output format - "markdown" (human-readable, default) or "json" (structured data)
     """
+    if format not in ("markdown", "json"):
+        return {"error": f"Invalid format: {format}. Must be 'markdown' or 'json'."}
+    limit = _clamp_limit(limit, default=200)
     db_path = _get_db_path(ctx)
     conn = get_connection(db_path)
 
@@ -236,6 +264,7 @@ def list_sessions(
         date_to: Filter sessions up to this date (ISO format)
         tags: Filter to sessions with ALL of these tags (e.g. ["workstream:game-tracking", "has:tests"])
     """
+    limit = _clamp_limit(limit, default=20)
     db_path = _get_db_path(ctx)
     conn = get_connection(db_path)
 
@@ -290,6 +319,8 @@ def tag_message(
         message_id: Integer message ID (from search_history or get_conversation results)
         tags: List of tag strings to apply (e.g. ["review:ux", "important"])
     """
+    if err := _validate_tags(tags):
+        return {"error": err}
     db_path = _get_db_path(ctx)
     conn = get_connection(db_path)
 
@@ -337,6 +368,8 @@ def tag_session(
         session_id: Session UUID
         tags: List of tag strings (e.g. ["workstream:game-tracking", "important"])
     """
+    if err := _validate_tags(tags):
+        return {"error": err}
     db_path = _get_db_path(ctx)
     conn = get_connection(db_path)
 
@@ -378,6 +411,8 @@ def list_tags(
     Args:
         scope: "all", "message", or "session"
     """
+    if scope not in ("all", "message", "session"):
+        return [{"error": f"Invalid scope: {scope}. Must be 'all', 'message', or 'session'."}]
     db_path = _get_db_path(ctx)
     conn = get_connection(db_path)
 

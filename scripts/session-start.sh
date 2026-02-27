@@ -12,6 +12,11 @@ REGISTRY="$DATA_DIR/workstreams.json"
 INPUT=$(cat)
 SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // empty' 2>/dev/null || true)
 
+# Validate session ID format (UUID hex + dashes only)
+if [ -n "$SESSION_ID" ] && ! [[ "$SESSION_ID" =~ ^[a-f0-9-]+$ ]]; then
+  SESSION_ID=""
+fi
+
 # Initialize data directory (idempotent)
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/init-data-dir.sh" 2>/dev/null || true
 
@@ -35,6 +40,11 @@ fi
 
 # Find active workstream
 ACTIVE_NAME=$(jq -r '[.workstreams | to_entries[] | select(.value.status == "active")] | first | .key // empty' "$REGISTRY" 2>/dev/null || true)
+
+# Validate workstream name format (lowercase alphanum + dashes)
+if [ -n "$ACTIVE_NAME" ] && ! [[ "$ACTIVE_NAME" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
+  ACTIVE_NAME=""
+fi
 
 if [ -z "$ACTIVE_NAME" ]; then
   # List available workstreams
