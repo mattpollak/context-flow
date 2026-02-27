@@ -23,13 +23,16 @@ DATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/context-flow"
 2. **Validate target exists.** Check that `$ARGUMENTS` exists in `$DATA_DIR/workstreams.json`. If not, list available workstreams and stop.
 
 3. **Save current workstream.** If there is an active workstream:
-   a. Determine its state file path: `$DATA_DIR/workstreams/<active-name>/state.md`
-   b. Write an updated `state.md` using atomic overwrite:
-      - Write current status, key decisions, and next steps to `state.md.new`
-      - `command mv state.md state.md.bak` (if state.md exists)
-      - `command mv state.md.new state.md`
-   c. Keep the content under 80 lines. Include: current status (what was being worked on), key decisions made this session, next steps.
-   d. Set the old workstream's status to `"parked"` and update `last_touched` in the registry.
+   a. Write updated state to `state.md.new` (under 80 lines: current status, key decisions, next steps):
+      ```bash
+      cat > "$DATA_DIR/workstreams/<active-name>/state.md.new" << 'STATEEOF'
+      <content>
+      STATEEOF
+      ```
+   b. Complete the save (rotate files, update registry, reset counter):
+      ```bash
+      bash "${CLAUDE_PLUGIN_ROOT}/scripts/complete-save.sh" "<active-name>"
+      ```
 
 4. **Activate target workstream.** Park the old and activate the new in the registry:
    ```bash
@@ -43,9 +46,4 @@ DATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/context-flow"
 
 6. **Change directory.** If the target workstream has a `project_dir` set in the registry and that directory exists, tell the user: "This workstream's project directory is `<path>`. You may want to `cd` there."
 
-7. **Reset context monitor counter.** Stop context exhaustion warnings until the next threshold:
-   ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/scripts/reset-counter.sh"
-   ```
-
-8. **Summarize.** Tell the user what workstream is now active and give a brief summary of its current status from state.md.
+7. **Summarize.** Tell the user what workstream is now active and give a brief summary of its current status from state.md.

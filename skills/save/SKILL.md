@@ -19,18 +19,12 @@ DATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/context-flow"
 
 1. **Find active workstream.** Read `$DATA_DIR/workstreams.json` and find the workstream with `"status": "active"`. If none is active, tell the user there's no active workstream to save and suggest `/context-flow:new` or `/context-flow:switch`.
 
-2. **Write state file.** The state file is at `$DATA_DIR/workstreams/<name>/state.md`. Write an updated version that captures the current session state. Use atomic overwrite:
+2. **Write state file.** Write the updated state to a `.new` temp file:
 
    ```bash
-   # Write new content to temp file first
    cat > "$DATA_DIR/workstreams/<name>/state.md.new" << 'STATEEOF'
    <content>
    STATEEOF
-
-   # Atomic swap with backup
-   [ -f "$DATA_DIR/workstreams/<name>/state.md" ] && \
-     command mv "$DATA_DIR/workstreams/<name>/state.md" "$DATA_DIR/workstreams/<name>/state.md.bak"
-   command mv "$DATA_DIR/workstreams/<name>/state.md.new" "$DATA_DIR/workstreams/<name>/state.md"
    ```
 
 3. **State file content.** The state file MUST stay under 80 lines. Include these sections:
@@ -58,14 +52,9 @@ DATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/context-flow"
 
    **Priority if space is tight:** Current Status > Next Steps > Key Decisions > Recent Sessions.
 
-4. **Update registry timestamp.** Update `last_touched` in the registry:
+4. **Complete the save.** Rotate files, update registry, and reset the context monitor — all in one step:
    ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/scripts/update-registry.sh" "<name>"
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/complete-save.sh" "<name>"
    ```
 
-5. **Reset context monitor counter.** Stop context exhaustion warnings until the next threshold:
-   ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/scripts/reset-counter.sh"
-   ```
-
-6. **Confirm.** Tell the user the state was saved. Mention the backup file exists at `state.md.bak`.
+5. **Confirm.** Tell the user the state was saved. Mention the backup file exists at `state.md.bak`.
