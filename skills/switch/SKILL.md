@@ -31,15 +31,9 @@ DATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/context-flow"
    c. Keep the content under 80 lines. Include: current status (what was being worked on), key decisions made this session, next steps.
    d. Set the old workstream's status to `"parked"` and update `last_touched` in the registry.
 
-4. **Activate target workstream.** Set its status to `"active"` and update `last_touched` in the registry using jq:
+4. **Activate target workstream.** Park the old and activate the new in the registry:
    ```bash
-   jq --arg old "<old-name>" --arg new "<new-name>" --arg date "$(date +%Y-%m-%d)" \
-      '(.workstreams[$old].status = "parked") |
-       (.workstreams[$old].last_touched = $date) |
-       (.workstreams[$new].status = "active") |
-       (.workstreams[$new].last_touched = $date)' \
-      "$DATA_DIR/workstreams.json" > "$DATA_DIR/workstreams.json.tmp" && \
-   command mv "$DATA_DIR/workstreams.json.tmp" "$DATA_DIR/workstreams.json"
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/switch-registry.sh" "<old-name>" "<new-name>"
    ```
 
 5. **Load target context.** Read and display the target workstream's files:
@@ -49,11 +43,9 @@ DATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/context-flow"
 
 6. **Change directory.** If the target workstream has a `project_dir` set in the registry and that directory exists, tell the user: "This workstream's project directory is `<path>`. You may want to `cd` there."
 
-7. **Reset context monitor counter.** After saving, reset the tool call counter:
+7. **Reset context monitor counter.** Stop context exhaustion warnings until the next threshold:
    ```bash
-   for f in ${TMPDIR:-/tmp}/context-flow-*.count; do
-     [ -f "$f" ] && echo "0" > "$f"
-   done
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/reset-counter.sh"
    ```
 
 8. **Summarize.** Tell the user what workstream is now active and give a brief summary of its current status from state.md.

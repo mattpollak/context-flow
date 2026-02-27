@@ -58,19 +58,14 @@ DATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/context-flow"
 
    **Priority if space is tight:** Current Status > Next Steps > Key Decisions > Recent Sessions.
 
-4. **Update registry timestamp.** Update `last_touched` in `$DATA_DIR/workstreams.json`:
+4. **Update registry timestamp.** Update `last_touched` in the registry:
    ```bash
-   jq --arg name "<name>" --arg date "$(date +%Y-%m-%d)" \
-      '.workstreams[$name].last_touched = $date' \
-      "$DATA_DIR/workstreams.json" > "$DATA_DIR/workstreams.json.tmp" && \
-   command mv "$DATA_DIR/workstreams.json.tmp" "$DATA_DIR/workstreams.json"
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/update-registry.sh" "<name>"
    ```
 
-5. **Reset context monitor counter.** After saving, reset the tool call counter so the context exhaustion warnings stop until the next threshold:
+5. **Reset context monitor counter.** Stop context exhaustion warnings until the next threshold:
    ```bash
-   for f in ${TMPDIR:-/tmp}/context-flow-*.count; do
-     [ -f "$f" ] && echo "0" > "$f"
-   done
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/reset-counter.sh"
    ```
 
 6. **Confirm.** Tell the user the state was saved. Mention the backup file exists at `state.md.bak`.

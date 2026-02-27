@@ -26,18 +26,12 @@ DATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/context-flow"
 
 3. **Update registry.** Set the workstream's status to `"parked"` and update `last_touched`:
    ```bash
-   jq --arg name "<name>" --arg date "$(date +%Y-%m-%d)" \
-      '(.workstreams[$name].status = "parked") |
-       (.workstreams[$name].last_touched = $date)' \
-      "$DATA_DIR/workstreams.json" > "$DATA_DIR/workstreams.json.tmp" && \
-   command mv "$DATA_DIR/workstreams.json.tmp" "$DATA_DIR/workstreams.json"
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/park-registry.sh" "<name>"
    ```
 
-4. **Reset context monitor counter.** After saving, reset the tool call counter:
+4. **Reset context monitor counter.** Stop context exhaustion warnings until the next threshold:
    ```bash
-   for f in ${TMPDIR:-/tmp}/context-flow-*.count; do
-     [ -f "$f" ] && echo "0" > "$f"
-   done
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/reset-counter.sh"
    ```
 
 5. **Confirm.** Tell the user the workstream has been parked. Mention they can resume it later with `/context-flow:switch <name>`.

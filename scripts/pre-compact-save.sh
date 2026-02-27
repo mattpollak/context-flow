@@ -39,8 +39,9 @@ The state file must be under 80 lines and include:
 - Next steps
 - Any blockers or important context that would be lost
 
-Also update last_touched in ${REGISTRY} using:
-jq --arg name "${ACTIVE_NAME}" --arg date "\$(date +%Y-%m-%d)" '.workstreams[\$name].last_touched = \$date' "${REGISTRY}" > "${REGISTRY}.tmp" && command mv "${REGISTRY}.tmp" "${REGISTRY}"
+Then update the registry and reset the context monitor:
+bash "\${CLAUDE_PLUGIN_ROOT}/scripts/update-registry.sh" "${ACTIVE_NAME}"
+bash "\${CLAUDE_PLUGIN_ROOT}/scripts/reset-counter.sh"
 EOF
 
 exit 0

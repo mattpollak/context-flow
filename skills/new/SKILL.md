@@ -33,15 +33,9 @@ DATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/context-flow"
 
 6. **Create workstream directory and state file.** Create `$DATA_DIR/workstreams/<name>/state.md` using the template at `${CLAUDE_PLUGIN_ROOT}/templates/state.md`. Replace `{{NAME}}` with the name, `{{DESCRIPTION}}` with the description, `{{DATE}}` with today's date (YYYY-MM-DD), and `{{PROJECT_DIR}}` with the current working directory.
 
-7. **Update registry.** Add the new workstream to `$DATA_DIR/workstreams.json` using jq:
+7. **Update registry.** Add the new workstream to the registry:
    ```bash
-   jq --arg name "<name>" \
-      --arg desc "<description>" \
-      --arg date "$(date +%Y-%m-%d)" \
-      --arg dir "$(pwd)" \
-      '.workstreams[$name] = {status: "active", description: $desc, created: $date, last_touched: $date, project_dir: $dir}' \
-      "$DATA_DIR/workstreams.json" > "$DATA_DIR/workstreams.json.tmp" && \
-   command mv "$DATA_DIR/workstreams.json.tmp" "$DATA_DIR/workstreams.json"
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/new-registry.sh" "<name>" "<description>" "$(pwd)"
    ```
 
 8. **Confirm.** Tell the user the workstream was created and is now active. Show the path to the state file.
