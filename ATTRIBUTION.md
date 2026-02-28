@@ -1,6 +1,6 @@
 # Attribution
 
-context-flow was designed by studying several existing Claude Code memory
+relay was designed by studying several existing Claude Code memory
 and workflow management systems. While no code was copied from these projects,
 their architectural ideas and patterns were instrumental in shaping this plugin.
 

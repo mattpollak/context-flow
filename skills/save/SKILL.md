@@ -11,7 +11,7 @@ Save the current session's context to the active workstream's state file.
 
 ## Steps
 
-1. **Find active workstream.** Read the registry and find the workstream with `"status": "active"`. If none is active, tell the user there's no active workstream to save and suggest `/context-flow:new` or `/context-flow:switch`.
+1. **Find active workstream.** Read the registry and find the workstream with `"status": "active"`. If none is active, tell the user there's no active workstream to save and suggest `/relay:new` or `/relay:switch`.
    ```bash
    bash "${CLAUDE_PLUGIN_ROOT}/scripts/read-data-file.sh" "workstreams.json"
    ```

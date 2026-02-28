@@ -8,7 +8,7 @@ argument-hint: "<name> [description]"
 
 # Create New Workstream
 
-Create a new context-flow workstream with the name and description provided in `$ARGUMENTS`.
+Create a new workstream with the name and description provided in `$ARGUMENTS`.
 
 ## Steps
 

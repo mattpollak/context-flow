@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.5.0] - 2026-02-28
+
+### Changed
+- **Renamed project from context-flow to relay** — avoids autocomplete collision with Claude Code's built-in `/context` command
+- **Centralized app name** — new `scripts/common.sh` with shared `APP_NAME`, `DATA_DIR`, and `COUNTER_PREFIX` constants sourced by all 13 scripts
+- **Python package renamed** — `context_flow_server` → `relay_server`, `context-flow-server` → `relay-server`
+- **MCP server renamed** — `context-flow-search` → `relay-search`
+- **Data paths updated** — `~/.config/context-flow/` → `~/.config/relay/`, `~/.local/share/context-flow/` → `~/.local/share/relay/`
+- **All slash commands** — `/context-flow:*` → `/relay:*`
+
+### Added
+- **`scripts/migrate-data.sh`** — one-time migration script to move data from old `context-flow` paths to `relay`
+- **Old directory detection** — `session-start.sh` detects `~/.config/context-flow/` and prompts user to run migration
+
 ## [0.4.0] - 2026-02-28
 
 ### Added

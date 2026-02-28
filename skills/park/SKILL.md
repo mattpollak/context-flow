@@ -34,4 +34,4 @@ Park the active workstream (or the one named `$ARGUMENTS`), saving its state fir
    bash "${CLAUDE_PLUGIN_ROOT}/scripts/park-registry.sh" "<name>"
    ```
 
-4. **Confirm.** Tell the user the workstream has been parked. Mention they can resume it later with `/context-flow:switch <name>`.
+4. **Confirm.** Tell the user the workstream has been parked. Mention they can resume it later with `/relay:switch <name>`.

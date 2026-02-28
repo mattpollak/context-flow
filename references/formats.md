@@ -1,4 +1,4 @@
-# context-flow Data Formats
+# relay Data Formats
 
 ## workstreams.json
 
@@ -72,5 +72,5 @@ Cross-project ideas and future work. Simple bullet list.
 
 ## Companion files (optional, per-workstream)
 
-- **plan.md** — Implementation plan. Not auto-loaded; read on explicit `/context-flow:switch`.
-- **architecture.md** — Architecture notes. Not auto-loaded; read on explicit `/context-flow:switch`.
+- **plan.md** — Implementation plan. Not auto-loaded; read on explicit `/relay:switch`.
+- **architecture.md** — Architecture notes. Not auto-loaded; read on explicit `/relay:switch`.

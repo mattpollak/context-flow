@@ -15,7 +15,7 @@ Display all workstreams from the registry, grouped by status.
    ```bash
    bash "${CLAUDE_PLUGIN_ROOT}/scripts/read-data-file.sh" "workstreams.json"
    ```
-   If the output is `NOT_FOUND`, tell the user no workstreams have been created yet and suggest `/context-flow:new`.
+   If the output is `NOT_FOUND`, tell the user no workstreams have been created yet and suggest `/relay:new`.
 
 2. **Display grouped by status.** Format the output as a table grouped by status. Show active workstreams first, then parked, then completed:
 
@@ -46,5 +46,5 @@ Display all workstreams from the registry, grouped by status.
 
 4. **Quick tips.** After the listing, show:
    ```
-   **Commands:** `/context-flow:new` · `/context-flow:switch <name>` · `/context-flow:park` · `/context-flow:save`
+   **Commands:** `/relay:new` · `/relay:switch <name>` · `/relay:park` · `/relay:save`
    ```

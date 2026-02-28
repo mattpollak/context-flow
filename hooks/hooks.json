@@ -1,5 +1,5 @@
 {
-  "description": "context-flow lifecycle hooks: auto-load context, monitor usage, save on compaction, cleanup on exit",
+  "description": "relay lifecycle hooks: auto-load context, monitor usage, save on compaction, cleanup on exit",
   "hooks": {
     "PreToolUse": [
       {

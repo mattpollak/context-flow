@@ -1,15 +1,15 @@
-# context-flow
+# relay
 
 A Claude Code plugin for workstream management, context persistence, and conversation history search.
 
 **The problem:** Claude Code sessions are stateless. Every new session starts from scratch — you re-explain what you're working on, re-describe your architecture, and repeat decisions you already made. If you juggle multiple projects, context-switching means writing notes by hand or hoping you remember where you left off. And all that knowledge Claude helped you build? Buried in transcript files with no way to find it again.
 
-**context-flow fixes this.** It tracks what you're working on across sessions, auto-loads your most recent context at startup, and indexes every conversation you've ever had with Claude Code — making it all searchable. Switch between projects without losing your place. Find that UX review from last week. Pick up exactly where you left off.
+**relay fixes this.** It tracks what you're working on across sessions, auto-loads your most recent context at startup, and indexes every conversation you've ever had with Claude Code — making it all searchable. Switch between projects without losing your place. Find that UX review from last week. Pick up exactly where you left off.
 
 ## What You Get
 
 - **Auto-loaded context** — Every session starts with your active workstream's state already in context. No more "let me catch you up on what we're doing."
-- **One-command project switching** — `/context-flow:switch auth-migration` saves your current work, loads the new project's state, and you're coding in seconds.
+- **One-command project switching** — `/relay:switch auth-migration` saves your current work, loads the new project's state, and you're coding in seconds.
 - **Context exhaustion warnings** — Get warned at ~80 tool calls (approaching limit) and ~100 (critical) so you can save before compaction hits.
 - **Auto-save before compaction** — PreCompact hook ensures Claude saves your state before context is compressed.
 - **Full conversation history search** — MCP server indexes all your Claude Code transcripts into searchable SQLite FTS5. Find that architecture decision from two weeks ago.
@@ -34,10 +34,10 @@ A Claude Code plugin for workstream management, context persistence, and convers
 
 ```bash
 # Add the marketplace
-claude plugin marketplace add mattpollak/context-flow
+claude plugin marketplace add mattpollak/relay
 
 # Install the plugin
-claude plugin install context-flow@context-flow
+claude plugin install relay@relay
 ```
 
 To verify it's installed:
@@ -53,16 +53,14 @@ When you save, switch, or park a workstream, Claude runs helper scripts bundled 
 
 The hook (`scripts/approve-scripts.sh`) checks whether each Bash command targets a script inside the plugin's own `scripts/` directory. Only exact matches against `${CLAUDE_PLUGIN_ROOT}/scripts/` are approved; all other commands go through the normal permission flow.
 
-> **If you're upgrading from ≤0.4.0**, you can remove the old `Bash(bash */context-flow/*/scripts/*:*)` rule from `~/.claude/settings.json` — that glob pattern never actually worked because `*` doesn't match across `/` directory separators in Claude Code's permission system.
-
 ### Updating
 
 ```bash
 # Pull latest from the marketplace
-claude plugin marketplace update context-flow
+claude plugin marketplace update relay
 
 # Update the plugin
-claude plugin update context-flow@context-flow
+claude plugin update relay@relay
 ```
 
 Restart Claude Code after updating to apply changes.
@@ -70,7 +68,7 @@ Restart Claude Code after updating to apply changes.
 ### Testing without installing
 
 ```bash
-claude --plugin-dir /path/to/context-flow
+claude --plugin-dir /path/to/relay
 ```
 
 ## Usage
@@ -79,11 +77,11 @@ claude --plugin-dir /path/to/context-flow
 
 | Command | What it does |
 |---|---|
-| `/context-flow:new api-refactor Modernizing the REST API` | Create a new workstream |
-| `/context-flow:list` | List all workstreams grouped by status |
-| `/context-flow:save` | Save current workstream state to disk |
-| `/context-flow:switch auth-migration` | Save current, load a different workstream |
-| `/context-flow:park` | Save and deactivate the current workstream |
+| `/relay:new api-refactor Modernizing the REST API` | Create a new workstream |
+| `/relay:list` | List all workstreams grouped by status |
+| `/relay:save` | Save current workstream state to disk |
+| `/relay:switch auth-migration` | Save current, load a different workstream |
+| `/relay:park` | Save and deactivate the current workstream |
 
 ### Natural language
 
@@ -129,10 +127,10 @@ The MCP server provides tools that Claude can use directly during your session:
 
 ## Data Storage
 
-Data is stored at `${XDG_CONFIG_HOME:-$HOME/.config}/context-flow/`:
+Data is stored at `${XDG_CONFIG_HOME:-$HOME/.config}/relay/`:
 
 ```
-~/.config/context-flow/
+~/.config/relay/
 ├── workstreams.json              # Central registry
 ├── parking-lot.md                # Cross-project ideas
 ├── session-markers/              # Links session IDs to workstreams (auto)
@@ -146,7 +144,7 @@ Data is stored at `${XDG_CONFIG_HOME:-$HOME/.config}/context-flow/`:
     └── ...
 ```
 
-The conversation search index lives at `~/.local/share/context-flow/index.db` (SQLite, WAL mode).
+The conversation search index lives at `~/.local/share/relay/index.db` (SQLite, WAL mode).
 
 ## How It Works
 
@@ -176,13 +174,13 @@ On startup, the server scans `~/.claude/projects/` for JSONL transcript files an
 
 ## Complementary Systems
 
-context-flow handles **session state** (what you're working on, where you left off). It complements, not replaces, Claude Code's built-in systems:
+relay handles **session state** (what you're working on, where you left off). It complements, not replaces, Claude Code's built-in systems:
 
 | System | Purpose | Example |
 |---|---|---|
 | Auto-memory (`MEMORY.md`) | Learnings about the codebase | "Use TypeORM migrations for schema changes" |
 | `CLAUDE.md` | Instructions for Claude | "Run tests with `npm test` before committing" |
-| **context-flow** | Session state + task switching + history search | "Working on auth migration, next: add OAuth" |
+| **relay** | Session state + task switching + history search | "Working on auth migration, next: add OAuth" |
 
 ## Migrating from Manual Workstreams
 
@@ -190,10 +188,10 @@ If you have - and you almost certainly don't, unless you're me - an existing man
 
 ```bash
 # Preview what the migration will do
-bash /path/to/context-flow/scripts/migrate-from-workstreams.sh --dry-run
+bash /path/to/relay/scripts/migrate-from-workstreams.sh --dry-run
 
 # Run the migration
-bash /path/to/context-flow/scripts/migrate-from-workstreams.sh
+bash /path/to/relay/scripts/migrate-from-workstreams.sh
 ```
 
 The migration is non-destructive — it copies files to the new location without deleting originals.

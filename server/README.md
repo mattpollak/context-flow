@@ -1,4 +1,4 @@
-# context-flow-server
+# relay-server
 
 MCP server for searching Claude Code conversation history. Indexes JSONL transcript files and provides full-text search via SQLite FTS5.
 
@@ -16,15 +16,15 @@ MCP server for searching Claude Code conversation history. Indexes JSONL transcr
 
 ```bash
 # Run directly (starts stdio MCP server)
-cd server && uv run context-flow-server
+cd server && uv run relay-server
 
 # Or via python -m
-cd server && uv run python -m context_flow_server
+cd server && uv run python -m relay_server
 ```
 
 ## How it works
 
-On startup, the server scans `~/.claude/projects/` for JSONL transcript files. It incrementally indexes new/modified files into a SQLite database at `~/.local/share/context-flow/index.db`. Subsequent startups only process new or grown files.
+On startup, the server scans `~/.claude/projects/` for JSONL transcript files. It incrementally indexes new/modified files into a SQLite database at `~/.local/share/relay/index.db`. Subsequent startups only process new or grown files.
 
 The index stores:
 - **User messages** — actual human input (not tool results)
