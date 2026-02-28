@@ -5,6 +5,7 @@
 #       content
 #       EOF
 set -euo pipefail
+source "$(dirname "$0")/common.sh"
 
 RELPATH="${1:-}"
 if [ -z "$RELPATH" ]; then
@@ -12,7 +13,6 @@ if [ -z "$RELPATH" ]; then
   exit 1
 fi
 
-DATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/context-flow"
 FILE="$DATA_DIR/$RELPATH"
 
 # Ensure parent directory exists

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# migrate-from-workstreams.sh — One-time migration from a manual workstream system to context-flow.
+# migrate-from-workstreams.sh — One-time migration from a manual workstream system to relay.
 #
 # Parses a WORKSTREAMS.md registry with markdown tables under ## Active, ## Parked,
 # ## Completed headings, plus a ## Parking Lot bullet list. Copies each workstream's
@@ -36,7 +36,7 @@ done
 
 SOURCE_DIR="${SOURCE_DIR:-$HOME/src/claude/context}"
 REGISTRY_FILE="$SOURCE_DIR/WORKSTREAMS.md"
-DATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/context-flow"
+DATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/relay"
 
 # Verify prerequisites
 if ! command -v jq &>/dev/null; then
@@ -60,7 +60,7 @@ if [ "$DRY_RUN" = true ]; then
   echo
 fi
 
-echo "=== context-flow Migration ==="
+echo "=== relay Migration ==="
 echo "Source: $SOURCE_DIR"
 echo "Target: $DATA_DIR"
 echo
@@ -224,8 +224,8 @@ echo
 # Warn if multiple active workstreams detected
 ACTIVE_COUNT=$(echo "$REGISTRY_JSON" | jq '[.workstreams | to_entries[] | select(.value.status == "active")] | length')
 if [ "$ACTIVE_COUNT" -gt 1 ]; then
-  echo "WARNING: $ACTIVE_COUNT active workstreams found. context-flow expects at most one."
-  echo "         Use /context-flow:park to park extras after migration."
+  echo "WARNING: $ACTIVE_COUNT active workstreams found. relay expects at most one."
+  echo "         Use /relay:park to park extras after migration."
   echo
 fi
 
@@ -265,8 +265,8 @@ echo "1. Verify the migrated data:"
 echo "   cat $DATA_DIR/workstreams.json"
 echo "   ls $DATA_DIR/workstreams/"
 echo
-echo "2. Install the context-flow plugin:"
-echo "   claude plugin add <path-to-context-flow-repo>"
+echo "2. Install the relay plugin:"
+echo "   claude plugin add <path-to-relay-repo>"
 echo
 echo "3. Remove old hooks that conflict with the plugin (if any):"
 echo "   - Check ~/.claude/settings.json for PreCompact / SessionEnd hooks"

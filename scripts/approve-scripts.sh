@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # approve-scripts.sh — PreToolUse hook that auto-approves Bash commands
-# running context-flow plugin scripts. Receives plugin root as $1 and
+# running relay plugin scripts. Receives plugin root as $1 and
 # tool call JSON on stdin.
 set -euo pipefail
 
@@ -19,6 +19,6 @@ fi
 # Check if the first line of the command runs a script from this plugin
 FIRST_LINE=$(echo "$COMMAND" | head -1)
 if echo "$FIRST_LINE" | grep -qF "$PLUGIN_ROOT/scripts/" 2>/dev/null; then
-  echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","permissionDecisionReason":"context-flow plugin script"}}'
+  echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","permissionDecisionReason":"relay plugin script"}}'
 fi
 exit 0

@@ -4,6 +4,7 @@
 # MUST exit 0 to avoid blocking tool use.
 set -euo pipefail
 trap 'exit 0' ERR
+source "$(dirname "$0")/common.sh"
 
 # Read stdin for session_id
 INPUT=$(cat)
@@ -23,7 +24,7 @@ if ! [[ "$SESSION_ID" =~ ^[a-f0-9-]+$ ]]; then
   exit 0
 fi
 
-COUNTER_FILE="${TMPDIR:-/tmp}/context-flow-${SESSION_ID}.count"
+COUNTER_FILE="${COUNTER_PREFIX}-${SESSION_ID}.count"
 
 # Increment counter atomically
 if [ -f "$COUNTER_FILE" ]; then
@@ -38,12 +39,12 @@ echo "$COUNT" > "$COUNTER_FILE"
 if [ "$COUNT" -ge 100 ] && [ $((COUNT % 3)) -eq 0 ]; then
   # Critical: every 3rd call after 100
   jq -n '{
-    "systemMessage": "CRITICAL: ~100+ tool calls this session. Context compaction is likely imminent. Save your workstream state NOW with /context-flow:save before context is compressed and you lose session details."
+    "systemMessage": "CRITICAL: ~100+ tool calls this session. Context compaction is likely imminent. Save your workstream state NOW with /relay:save before context is compressed and you lose session details."
   }'
 elif [ "$COUNT" -ge 80 ] && [ $((COUNT % 5)) -eq 0 ]; then
   # Warning: every 5th call after 80
   jq -n '{
-    "systemMessage": "WARNING: ~80+ tool calls this session. Context window is filling up. Consider saving workstream state with /context-flow:save soon."
+    "systemMessage": "WARNING: ~80+ tool calls this session. Context window is filling up. Consider saving workstream state with /relay:save soon."
   }'
 fi
 

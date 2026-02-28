@@ -4,8 +4,8 @@
 # MUST exit 0 to avoid blocking the session.
 set -euo pipefail
 trap 'exit 0' ERR
+source "$(dirname "$0")/common.sh"
 
-DATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/context-flow"
 REGISTRY="$DATA_DIR/workstreams.json"
 
 # Capture stdin (JSON with session_id from Claude Code)
@@ -26,10 +26,23 @@ if ! command -v jq &>/dev/null; then
 {
   "hookSpecificOutput": {
     "hookEventName": "SessionStart",
-    "additionalContext": "context-flow: WARNING — jq is not installed. Install jq to enable workstream management. See: https://jqlang.github.io/jq/download/"
+    "additionalContext": "relay: WARNING — jq is not installed. Install jq to enable workstream management. See: https://jqlang.github.io/jq/download/"
   }
 }
 ENDJSON
+  exit 0
+fi
+
+# Check for old data directory that needs migration
+OLD_DATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/context-flow"
+if [ -d "$OLD_DATA_DIR" ] && [ ! -d "$DATA_DIR" ]; then
+  MIGRATE_MSG="relay: Detected old context-flow data at $OLD_DATA_DIR. Run: bash \${CLAUDE_PLUGIN_ROOT}/scripts/migrate-data.sh"
+  jq -n --arg ctx "$MIGRATE_MSG" '{
+    hookSpecificOutput: {
+      hookEventName: "SessionStart",
+      additionalContext: $ctx
+    }
+  }'
   exit 0
 fi
 
@@ -50,17 +63,17 @@ if [ -z "$ACTIVE_NAME" ]; then
   # List available workstreams
   AVAILABLE=$(jq -r '[.workstreams | to_entries[] | select(.value.status == "parked") | .key] | join(", ")' "$REGISTRY" 2>/dev/null || true)
   if [ -n "$AVAILABLE" ]; then
-    CONTEXT="context-flow: No active workstream. Parked workstreams: ${AVAILABLE}. Use /context-flow:switch to resume one, or /context-flow:new to create one."
+    CONTEXT="relay: No active workstream. Parked workstreams: ${AVAILABLE}. Use /relay:switch to resume one, or /relay:new to create one."
   else
-    CONTEXT="context-flow: No workstreams found. Use /context-flow:new to create one."
+    CONTEXT="relay: No workstreams found. Use /relay:new to create one."
   fi
 else
   STATE_FILE="$DATA_DIR/workstreams/$ACTIVE_NAME/state.md"
   if [ -f "$STATE_FILE" ]; then
     STATE_CONTENT=$(cat "$STATE_FILE")
-    CONTEXT=$(printf "context-flow: Active workstream '%s'\n---\n%s\n---" "$ACTIVE_NAME" "$STATE_CONTENT")
+    CONTEXT=$(printf "relay: Active workstream '%s'\n---\n%s\n---" "$ACTIVE_NAME" "$STATE_CONTENT")
   else
-    CONTEXT="context-flow: Active workstream '${ACTIVE_NAME}' (no state file found — use /context-flow:save to create one)"
+    CONTEXT="relay: Active workstream '${ACTIVE_NAME}' (no state file found — use /relay:save to create one)"
   fi
 fi
 

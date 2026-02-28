@@ -3,8 +3,8 @@
 # MUST exit 0 to avoid blocking compaction.
 set -euo pipefail
 trap 'exit 0' ERR
+source "$(dirname "$0")/common.sh"
 
-DATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/context-flow"
 REGISTRY="$DATA_DIR/workstreams.json"
 
 # Check jq and registry exist

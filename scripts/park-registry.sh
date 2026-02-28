@@ -2,6 +2,7 @@
 # park-registry.sh — Set a workstream's status to parked in the registry.
 # Usage: bash park-registry.sh <workstream-name>
 set -euo pipefail
+source "$(dirname "$0")/common.sh"
 
 NAME="${1:-}"
 if [ -z "$NAME" ]; then
@@ -9,7 +10,6 @@ if [ -z "$NAME" ]; then
   exit 1
 fi
 
-DATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/context-flow"
 REGISTRY="$DATA_DIR/workstreams.json"
 
 if [ ! -f "$REGISTRY" ]; then

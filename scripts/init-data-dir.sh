@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
-# init-data-dir.sh — Ensure the context-flow data directory exists.
+# init-data-dir.sh — Ensure the relay data directory exists.
 # Idempotent: safe to call multiple times.
 set -euo pipefail
-
-DATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/context-flow"
+source "$(dirname "$0")/common.sh"
 
 mkdir -p "$DATA_DIR/workstreams"
 

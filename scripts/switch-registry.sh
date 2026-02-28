@@ -2,6 +2,7 @@
 # switch-registry.sh — Park old workstream and activate new one in the registry.
 # Usage: bash switch-registry.sh <old-name> <new-name>
 set -euo pipefail
+source "$(dirname "$0")/common.sh"
 
 OLD="${1:-}"
 NEW="${2:-}"
@@ -10,7 +11,6 @@ if [ -z "$OLD" ] || [ -z "$NEW" ]; then
   exit 1
 fi
 
-DATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/context-flow"
 REGISTRY="$DATA_DIR/workstreams.json"
 
 if [ ! -f "$REGISTRY" ]; then

@@ -3,6 +3,7 @@
 # Called after the state.md.new file has been written.
 # Usage: bash complete-save.sh <workstream-name>
 set -euo pipefail
+source "$(dirname "$0")/common.sh"
 
 NAME="${1:-}"
 if [ -z "$NAME" ]; then
@@ -10,7 +11,6 @@ if [ -z "$NAME" ]; then
   exit 1
 fi
 
-DATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/context-flow"
 STATE_DIR="$DATA_DIR/workstreams/$NAME"
 STATE_FILE="$STATE_DIR/state.md"
 
@@ -40,7 +40,7 @@ if [ -f "$REGISTRY" ]; then
 fi
 
 # 3. Reset context monitor counter
-for f in "${TMPDIR:-/tmp}"/context-flow-*.count; do
+for f in "${COUNTER_PREFIX}"-*.count; do
   [ -f "$f" ] && echo "0" > "$f"
 done
 

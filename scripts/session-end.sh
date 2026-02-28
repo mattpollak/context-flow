@@ -4,6 +4,7 @@
 # MUST exit 0 to avoid blocking session end.
 set -euo pipefail
 trap 'exit 0' ERR
+source "$(dirname "$0")/common.sh"
 
 # Read stdin for session_id
 INPUT=$(cat)
@@ -22,11 +23,10 @@ fi
 
 # Clean up counter file
 if [ -n "$SESSION_ID" ]; then
-  rm -f "${TMPDIR:-/tmp}/context-flow-${SESSION_ID}.count"
+  rm -f "${COUNTER_PREFIX}-${SESSION_ID}.count"
 fi
 
 # Update last_touched on active workstream
-DATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/context-flow"
 REGISTRY="$DATA_DIR/workstreams.json"
 
 if [ ! -f "$REGISTRY" ]; then

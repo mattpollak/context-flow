@@ -2,6 +2,7 @@
 # new-registry.sh — Add a new workstream to the registry and set it as active.
 # Usage: bash new-registry.sh <name> <description> <project-dir>
 set -euo pipefail
+source "$(dirname "$0")/common.sh"
 
 NAME="${1:-}"
 DESC="${2:-}"
@@ -11,7 +12,6 @@ if [ -z "$NAME" ]; then
   exit 1
 fi
 
-DATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/context-flow"
 REGISTRY="$DATA_DIR/workstreams.json"
 
 if [ ! -f "$REGISTRY" ]; then
