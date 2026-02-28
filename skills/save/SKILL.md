@@ -9,20 +9,16 @@ description: >
 
 Save the current session's context to the active workstream's state file.
 
-## Data directory
-
-```
-DATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/context-flow"
-```
-
 ## Steps
 
-1. **Find active workstream.** Read `$DATA_DIR/workstreams.json` and find the workstream with `"status": "active"`. If none is active, tell the user there's no active workstream to save and suggest `/context-flow:new` or `/context-flow:switch`.
+1. **Find active workstream.** Read the registry and find the workstream with `"status": "active"`. If none is active, tell the user there's no active workstream to save and suggest `/context-flow:new` or `/context-flow:switch`.
+   ```bash
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/read-data-file.sh" "workstreams.json"
+   ```
 
 2. **Write state file.** Write the updated state to a `.new` temp file:
-
    ```bash
-   cat > "$DATA_DIR/workstreams/<name>/state.md.new" << 'STATEEOF'
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/write-data-file.sh" "workstreams/<name>/state.md.new" << 'STATEEOF'
    <content>
    STATEEOF
    ```

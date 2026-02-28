@@ -10,12 +10,6 @@ argument-hint: "<name> [description]"
 
 Create a new context-flow workstream with the name and description provided in `$ARGUMENTS`.
 
-## Data directory
-
-```
-DATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/context-flow"
-```
-
 ## Steps
 
 1. **Parse arguments.** The first word of `$ARGUMENTS` is the workstream name. Everything after is the description. If no arguments were provided, ask the user for a name and description before proceeding.
@@ -27,11 +21,20 @@ DATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/context-flow"
    bash "${CLAUDE_PLUGIN_ROOT}/scripts/init-data-dir.sh"
    ```
 
-4. **Check for duplicates.** Read `$DATA_DIR/workstreams.json` and check if a workstream with this name already exists. If it does, tell the user and stop.
+4. **Check for duplicates.** Read the registry and check if a workstream with this name already exists. If it does, tell the user and stop.
+   ```bash
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/read-data-file.sh" "workstreams.json"
+   ```
 
 5. **Auto-park active workstream.** If any workstream has `"status": "active"`, set it to `"parked"` and update its `last_touched` to today. Tell the user you're parking it.
 
-6. **Create workstream directory and state file.** Create `$DATA_DIR/workstreams/<name>/state.md` using the template at `${CLAUDE_PLUGIN_ROOT}/templates/state.md`. Replace `{{NAME}}` with the name, `{{DESCRIPTION}}` with the description, `{{DATE}}` with today's date (YYYY-MM-DD), and `{{PROJECT_DIR}}` with the current working directory.
+6. **Create workstream directory and state file.** Read the template and write the initial state, replacing `{{NAME}}` with the name, `{{DESCRIPTION}}` with the description, `{{DATE}}` with today's date (YYYY-MM-DD), and `{{PROJECT_DIR}}` with the current working directory:
+   ```bash
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/write-data-file.sh" "workstreams/<name>/state.md" << 'STATEEOF'
+   <expanded template content>
+   STATEEOF
+   ```
+   The template is at `${CLAUDE_PLUGIN_ROOT}/templates/state.md` — read it with the Read tool, then expand the placeholders before writing.
 
 7. **Update registry.** Add the new workstream to the registry:
    ```bash

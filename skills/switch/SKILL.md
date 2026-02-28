@@ -10,22 +10,19 @@ argument-hint: "<workstream-name>"
 
 Switch from the current active workstream to the one named `$ARGUMENTS`.
 
-## Data directory
-
-```
-DATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/context-flow"
-```
-
 ## Steps
 
-1. **Parse arguments.** The target workstream name is `$ARGUMENTS`. If empty, read `$DATA_DIR/workstreams.json` and list available (non-active) workstreams, then ask the user which one to switch to.
+1. **Parse arguments.** The target workstream name is `$ARGUMENTS`. If empty, read the registry and list available (non-active) workstreams, then ask the user which one to switch to:
+   ```bash
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/read-data-file.sh" "workstreams.json"
+   ```
 
-2. **Validate target exists.** Check that `$ARGUMENTS` exists in `$DATA_DIR/workstreams.json`. If not, list available workstreams and stop.
+2. **Validate target exists.** Check that `$ARGUMENTS` exists in the registry output. If not, list available workstreams and stop.
 
 3. **Save current workstream.** If there is an active workstream:
    a. Write updated state to `state.md.new` (under 80 lines: current status, key decisions, next steps):
       ```bash
-      cat > "$DATA_DIR/workstreams/<active-name>/state.md.new" << 'STATEEOF'
+      bash "${CLAUDE_PLUGIN_ROOT}/scripts/write-data-file.sh" "workstreams/<active-name>/state.md.new" << 'STATEEOF'
       <content>
       STATEEOF
       ```
@@ -40,9 +37,14 @@ DATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/context-flow"
    ```
 
 5. **Load target context.** Read and display the target workstream's files:
-   - **Always read:** `$DATA_DIR/workstreams/<name>/state.md`
-   - **Read if exists:** `$DATA_DIR/workstreams/<name>/plan.md`
-   - **Read if exists:** `$DATA_DIR/workstreams/<name>/architecture.md`
+   ```bash
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/read-data-file.sh" "workstreams/<name>/state.md"
+   ```
+   Also check for optional files (skip any that return `NOT_FOUND`):
+   ```bash
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/read-data-file.sh" "workstreams/<name>/plan.md"
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/read-data-file.sh" "workstreams/<name>/architecture.md"
+   ```
 
 6. **Change directory.** If the target workstream has a `project_dir` set in the registry and that directory exists, tell the user: "This workstream's project directory is `<path>`. You may want to `cd` there."
 

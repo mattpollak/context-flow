@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.0] - 2026-02-28
+
+### Added
+- **`write-data-file.sh`** — generic helper script to write files to the data directory from stdin, eliminating `$DATA_DIR` and `${XDG_CONFIG_HOME:-...}` permission prompts on writes
+
+### Changed
+- **All skills** (switch, save, park, new) — removed `## Data directory` section; all file reads use `read-data-file.sh`, all writes use `write-data-file.sh`. Claude no longer constructs `$DATA_DIR` paths inline, eliminating "Command contains ${} parameter substitution" and "Shell expansion syntax in paths" permission prompts.
+
 ## [0.3.0] - 2026-02-27
 
 ### Added
