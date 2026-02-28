@@ -7,6 +7,9 @@ MCP server for searching Claude Code conversation history. Indexes JSONL transcr
 - **search_history** — Full-text search across all indexed conversations
 - **get_conversation** — Retrieve messages from a specific session
 - **list_sessions** — List recent sessions with metadata
+- **tag_message** — Manually tag a message for future discoverability
+- **tag_session** — Manually tag a session (e.g., associate with a workstream)
+- **list_tags** — List all tags with counts, filterable by scope (message/session/all)
 - **reindex** — Force a complete re-index from scratch
 
 ## Usage

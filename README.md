@@ -47,29 +47,13 @@ claude plugin list
 
 Start a new Claude Code session — you should see the SessionStart hook fire. If no workstreams exist yet, it will prompt you to create one.
 
-### Recommended permission setup
+### Permissions
 
-When you save, switch, or park a workstream, Claude runs helper scripts bundled with the plugin (e.g., `complete-save.sh` to atomically rotate state files). By default, Claude Code will prompt you to approve each of these shell commands individually.
+When you save, switch, or park a workstream, Claude runs helper scripts bundled with the plugin (e.g., `complete-save.sh` to atomically rotate state files). A bundled `PreToolUse` hook automatically approves these commands — **no manual permission setup is needed.**
 
-To auto-approve the plugin's scripts, add this pattern to `~/.claude/settings.json`:
+The hook (`scripts/approve-scripts.sh`) checks whether each Bash command targets a script inside the plugin's own `scripts/` directory. Only exact matches against `${CLAUDE_PLUGIN_ROOT}/scripts/` are approved; all other commands go through the normal permission flow.
 
-```json
-{
-  "permissions": {
-    "allow": [
-      "Bash(bash */context-flow/*/scripts/*:*)"
-    ]
-  }
-}
-```
-
-**Why this pattern?** Marketplace plugins are cached at `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/`. The pattern `*/context-flow/*/scripts/*:*` matches any `bash` command targeting a `.sh` script inside the plugin's `scripts/` directory, regardless of version number or cache location. The `:*` suffix is a prefix-match operator — it allows any arguments after the script path (e.g., the workstream name passed to `complete-save.sh`).
-
-**What this allows:** Only `bash` commands where the script path passes through a `context-flow/.../scripts/` directory. It does not grant blanket shell access — commands like `rm`, `curl`, or `bash` with arbitrary paths are unaffected.
-
-Without this, you'll see a permission prompt on every `/context-flow:save`, `/context-flow:switch`, and `/context-flow:park`. You can also approve them one at a time using "always allow" when prompted — the pattern above just does it upfront.
-
-**Security note:** The `:*` suffix matches everything after the script path, which in theory includes shell metacharacters (`;`, `&&`, `|`). This is inherent to all wildcard Bash permissions — `Bash(git commit:*)` has the same property. The practical risk is low: commands are generated from hardcoded skill templates, and the only variable part (the workstream name) is validated by the scripts themselves (`[a-z0-9-]` only). The real attack surface would be prompt injection convincing Claude to generate a crafted command, which is a broader threat model than permission patterns can address.
+> **If you're upgrading from ≤0.4.0**, you can remove the old `Bash(bash */context-flow/*/scripts/*:*)` rule from `~/.claude/settings.json` — that glob pattern never actually worked because `*` doesn't match across `/` directory separators in Claude Code's permission system.
 
 ### Updating
 
@@ -174,6 +158,7 @@ The conversation search index lives at `~/.local/share/context-flow/index.db` (S
 | `context-monitor.sh` | PostToolUse | Counts tool calls, warns at 80 and 100 |
 | `pre-compact-save.sh` | PreCompact | Instructs Claude to save state before compression |
 | `session-end.sh` | SessionEnd | Cleans up temp files, updates `last_touched` timestamp |
+| `approve-scripts.sh` | PreToolUse | Auto-approves Bash commands targeting plugin scripts (no user prompt) |
 
 ### State files
 
