@@ -4,8 +4,8 @@ import json
 import tempfile
 from pathlib import Path
 
-from context_flow_server.db import ensure_schema, get_connection
-from context_flow_server.indexer import _extract_from_entry, _parse_file, _UUID_RE, index_all
+from relay_server.db import ensure_schema, get_connection
+from relay_server.indexer import _extract_from_entry, _parse_file, _UUID_RE, index_all
 
 
 # --- Entry extraction tests ---

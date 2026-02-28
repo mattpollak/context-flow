@@ -406,7 +406,7 @@ def _get_marker_dir() -> Path:
     """Return the session markers directory path."""
     return Path(
         os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
-    ) / "context-flow" / "session-markers"
+    ) / "relay" / "session-markers"
 
 
 def _read_and_apply_marker(conn: sqlite3.Connection, marker_path: Path, sid: str) -> None:

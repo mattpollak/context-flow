@@ -1,6 +1,6 @@
 """Tests for server-level validation helpers."""
 
-from context_flow_server.server import _clamp_limit, _validate_tags, MAX_LIMIT, MAX_TAGS
+from relay_server.server import _clamp_limit, _validate_tags, MAX_LIMIT, MAX_TAGS
 
 
 def test_clamp_limit_normal():

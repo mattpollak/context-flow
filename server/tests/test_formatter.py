@@ -1,6 +1,6 @@
 """Tests for the markdown formatter."""
 
-from context_flow_server.formatter import _is_noise, _truncate, format_conversation
+from relay_server.formatter import _is_noise, _truncate, format_conversation
 
 
 def test_truncate_short_content():

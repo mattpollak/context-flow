@@ -37,7 +37,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
 
 
 mcp = FastMCP(
-    "context-flow-search",
+    "relay-search",
     instructions="Search Claude Code conversation history",
     lifespan=app_lifespan,
 )

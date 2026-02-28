@@ -4,7 +4,7 @@ import sqlite3
 import tempfile
 from pathlib import Path
 
-from context_flow_server.db import decode_project_dir, ensure_schema, get_connection
+from relay_server.db import decode_project_dir, ensure_schema, get_connection
 
 
 def test_decode_standard_path():

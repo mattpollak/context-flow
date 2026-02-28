@@ -1,4 +1,4 @@
-"""Database schema and connection management for context-flow index."""
+"""Database schema and connection management for relay index."""
 
 import os
 import sqlite3
@@ -86,7 +86,7 @@ TRIGGERS = [
 def get_db_path() -> Path:
     """Return the database path, respecting XDG_DATA_HOME."""
     data_home = os.environ.get("XDG_DATA_HOME", os.path.expanduser("~/.local/share"))
-    db_dir = Path(data_home) / "context-flow"
+    db_dir = Path(data_home) / "relay"
     db_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
     return db_dir / "index.db"
 
