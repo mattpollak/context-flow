@@ -1,6 +1,18 @@
 {
   "description": "context-flow lifecycle hooks: auto-load context, monitor usage, save on compaction, cleanup on exit",
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/scripts/approve-scripts.sh ${CLAUDE_PLUGIN_ROOT}",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
     "SessionStart": [
       {
         "matcher": "",
