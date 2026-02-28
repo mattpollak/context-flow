@@ -8,7 +8,7 @@
       "name": "context-flow",
       "source": "./",
       "description": "Workstream management, context persistence, and session history search for Claude Code",
-      "version": "0.1.0"
+      "version": "0.2.0"
     }
   ]
 }
