@@ -1,19 +1,22 @@
-# relay
+<p align="center">
+  <img src="logo.png" alt="relay logo" width="120">
+</p>
 
-A Claude Code plugin for workstream management, context persistence, and conversation history search.
+<h1 align="center">relay</h1>
 
-**The problem:** Claude Code sessions are stateless. Every new session starts from scratch — you re-explain what you're working on, re-describe your architecture, and repeat decisions you already made. If you juggle multiple projects, context-switching means writing notes by hand or hoping you remember where you left off. And all that knowledge Claude helped you build? Buried in transcript files with no way to find it again.
+<p align="center">Pass context between Claude Code sessions like a baton.</p>
 
-**relay fixes this.** It tracks what you're working on across sessions, auto-loads your most recent context at startup, and indexes every conversation you've ever had with Claude Code — making it all searchable. Switch between projects without losing your place. Find that UX review from last week. Pick up exactly where you left off.
+**The problem:** Claude Code sessions are isolated. Each one starts from scratch — you re-explain your architecture, repeat decisions, and re-orient Claude on where you left off. Juggling multiple projects means the handoff happens in your head. And everything Claude helped you figure out? Lost in transcript files nobody can search.
+
+**relay is the handoff.** It passes your working context from one session to the next — automatically loaded at startup, saved before compaction, and searchable across every conversation you've ever had. Switch between projects without dropping context.
 
 ## What You Get
 
-- **Auto-loaded context** — Every session starts with your active workstream's state already in context. No more "let me catch you up on what we're doing."
-- **One-command project switching** — `/relay:switch auth-migration` saves your current work, loads the new project's state, and you're coding in seconds.
-- **Context exhaustion warnings** — Get warned at ~80 tool calls (approaching limit) and ~100 (critical) so you can save before compaction hits.
-- **Auto-save before compaction** — PreCompact hook ensures Claude saves your state before context is compressed.
-- **Full conversation history search** — MCP server indexes all your Claude Code transcripts into searchable SQLite FTS5. Find that architecture decision from two weeks ago.
-- **Auto-tagging** — Messages are automatically tagged by content type (UX reviews, plans, decisions, investigations) so high-value content is discoverable without remembering exact phrases.
+- **Auto-loaded context** — Every session picks up where the last one left off. Your active workstream's state is relayed in before you type a word.
+- **One-command switching** — `/relay:switch auth-migration` saves your current context, loads the new project's state, and you're coding in seconds.
+- **Context protection** — Warnings at ~80 and ~100 tool calls so you can save before compaction hits. PreCompact hook saves automatically as a safety net.
+- **Full conversation search** — MCP server indexes every Claude Code transcript into searchable SQLite FTS5. Find that architecture decision from two weeks ago.
+- **Auto-tagging** — Messages tagged by content type (UX reviews, plans, decisions, investigations) so high-value content surfaces without remembering exact phrases.
 
 ## Prerequisites
 
