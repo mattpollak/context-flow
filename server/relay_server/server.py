@@ -57,6 +57,42 @@ def _clamp_limit(limit: int, default: int = 10) -> int:
     return min(max(limit, 1), MAX_LIMIT)
 
 
+def _parse_session_range(session_str: str, total: int) -> list[int]:
+    """Parse a session range string into sorted 0-based indices.
+
+    Accepts: "4", "4-5", "1,3,5", "1,3-5" (1-based, inclusive).
+    Returns sorted list of unique 0-based indices.
+    Raises ValueError on invalid input or out-of-range values.
+    """
+    if not session_str or not session_str.strip():
+        raise ValueError("Empty session range")
+
+    indices: set[int] = set()
+    for part in session_str.split(","):
+        part = part.strip()
+        if "-" in part:
+            pieces = part.split("-", 1)
+            try:
+                start, end = int(pieces[0]), int(pieces[1])
+            except ValueError:
+                raise ValueError(f"Invalid range: {part}")
+            if start > end:
+                raise ValueError(f"Invalid range: {part} (start > end)")
+            if start < 1 or end > total:
+                raise ValueError(f"Session {start}-{end} out of range (1-{total})")
+            indices.update(range(start - 1, end))
+        else:
+            try:
+                n = int(part)
+            except ValueError:
+                raise ValueError(f"Invalid session number: {part}")
+            if n < 1 or n > total:
+                raise ValueError(f"Session {n} out of range (1-{total})")
+            indices.add(n - 1)
+
+    return sorted(indices)
+
+
 def _validate_tags(tags: list[str]) -> str | None:
     """Validate tag list. Returns error string or None."""
     if len(tags) > MAX_TAGS:
