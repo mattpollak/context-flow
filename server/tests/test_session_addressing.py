@@ -128,3 +128,35 @@ class TestListSessionsSlug:
         result = list_sessions(ctx, slug="test-conversation", date_from="2026-01-01T12:00:00Z")
         assert len(result) == 2  # sessions 3 and 4
         assert [r["session_number"] for r in result] == [3, 4]
+
+
+class TestSearchHistorySessionNumber:
+    def test_results_include_session_number(self, ctx):
+        result = search_history("assistant message", ctx, limit=10)
+        assert len(result) > 0
+        assert all("session_number" in r for r in result)
+
+    def test_session_numbers_are_correct(self, ctx):
+        result = search_history("Session 3 assistant", ctx, limit=5)
+        # Should find the message in session 3
+        s3_results = [r for r in result if r["session_id"] == "s3"]
+        assert len(s3_results) > 0
+        assert all(r["session_number"] == 3 for r in s3_results)
+
+    def test_session_number_none_for_single_session(self, db_path, ctx):
+        """Sessions without a slug chain get session_number=1."""
+        conn = get_connection(db_path)
+        conn.execute(
+            "INSERT INTO sessions VALUES (?,?,?,?,?,?,?,?)",
+            ("solo", "/home/test/project", "solo-slug", "2026-02-01T10:00:00Z", "2026-02-01T10:30:00Z", 1, "main", "/"),
+        )
+        conn.execute(
+            "INSERT INTO messages (session_id, role, content, timestamp, model) VALUES (?,?,?,?,?)",
+            ("solo", "user", "solo unique searchterm xyzzy", "2026-02-01T10:00:00Z", None),
+        )
+        conn.commit()
+        conn.close()
+
+        result = search_history("xyzzy", ctx, limit=5)
+        assert len(result) == 1
+        assert result[0]["session_number"] == 1

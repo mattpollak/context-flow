@@ -174,7 +174,36 @@ def search_history(
             rows = conn.execute(sql, params).fetchall()
         except sqlite3.OperationalError as e:
             return [{"error": f"Invalid search query: {e}. FTS5 syntax: use AND, OR, NOT, \"quoted phrases\"."}]
-        return [dict(row) for row in rows]
+
+        results = [dict(row) for row in rows]
+
+        # Annotate with session_number within slug chain
+        if results:
+            slugs = {r["slug"] for r in results if r.get("slug")}
+            session_number_lookup: dict[str, int] = {}
+            if slugs:
+                slug_placeholders = ",".join("?" * len(slugs))
+                chain_rows = conn.execute(
+                    f"""SELECT session_id, slug FROM sessions
+                        WHERE slug IN ({slug_placeholders})
+                        ORDER BY slug, first_timestamp ASC""",
+                    list(slugs),
+                ).fetchall()
+
+                # Build {session_id: session_number} lookup
+                current_slug = None
+                counter = 0
+                for r in chain_rows:
+                    if r["slug"] != current_slug:
+                        current_slug = r["slug"]
+                        counter = 0
+                    counter += 1
+                    session_number_lookup[r["session_id"]] = counter
+
+            for r in results:
+                r["session_number"] = session_number_lookup.get(r["session_id"])
+
+        return results
     finally:
         conn.close()
 
