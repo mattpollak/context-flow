@@ -4,9 +4,9 @@ MCP server for searching Claude Code conversation history. Indexes JSONL transcr
 
 ## Tools
 
-- **search_history** — Full-text search across all indexed conversations
-- **get_conversation** — Retrieve messages from a specific session
-- **list_sessions** — List recent sessions with metadata
+- **search_history** — Full-text search across all indexed conversations. Results include `session_number` within slug chains.
+- **get_conversation** — Retrieve messages from a specific session. Supports `session` param for filtering multi-session slugs (e.g. `"4"`, `"2-3"`, `"1,4"`).
+- **list_sessions** — List recent sessions with metadata. Use `slug` param to get a session index with numbered sessions.
 - **tag_message** — Manually tag a message for future discoverability
 - **tag_session** — Manually tag a session (e.g., associate with a workstream)
 - **list_tags** — List all tags with counts, filterable by scope (message/session/all)

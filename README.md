@@ -103,13 +103,18 @@ The MCP server provides tools that Claude can use directly during your session:
 
 | Tool | What it does |
 |---|---|
-| `search_history` | Full-text search across all conversations (FTS5: AND, OR, NOT, "phrases") |
-| `get_conversation` | Retrieve messages from a session by UUID or slug. Slug chains (via "continue") return all sessions combined chronologically. |
-| `list_sessions` | List recent sessions with metadata, filterable by project, date, and tags |
+| `search_history` | Full-text search across all conversations (FTS5: AND, OR, NOT, "phrases"). Results include `session_number` showing position in slug chain. |
+| `get_conversation` | Retrieve messages from a session by UUID or slug. Slug chains (via "continue") return all sessions combined chronologically. Use `session` param to filter to specific sessions (e.g. `"4"`, `"2-3"`, `"1,4"`). |
+| `list_sessions` | List recent sessions with metadata, filterable by project, date, and tags. Use `slug` param to get a session index with `session_number` fields. |
 | `tag_message` | Manually tag a message for future discoverability |
 | `tag_session` | Manually tag a session (e.g., associate with a workstream) |
 | `list_tags` | List all tags with counts — see what's been auto-detected |
 | `reindex` | Force a complete re-index from scratch |
+
+**Session-level addressing:** When a conversation spans multiple sessions (via "continue"), you can address specific sessions:
+- `list_sessions(slug="my-conversation")` — returns a session index with `session_number` for each session
+- `get_conversation("my-conversation", session="4-5")` — retrieves only sessions 4 and 5
+- `search_history("ledger")` — results include `session_number` so you know which session each hit is in
 
 **Tag filtering:** Both `search_history` and `list_sessions` accept an optional `tags` parameter to narrow results. For example, searching for "splash page" with `tags: ["review:ux"]` returns only UX review messages that mention splash page.
 
