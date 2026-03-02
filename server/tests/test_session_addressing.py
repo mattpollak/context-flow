@@ -101,3 +101,30 @@ class TestGetConversationSessionFilter:
         result = get_conversation("test-conversation", ctx, format="json")
         assert result["message_count"] == 12
         assert len(result["sessions"]) == 4
+
+
+class TestListSessionsSlug:
+    def test_slug_returns_all_sessions(self, ctx):
+        result = list_sessions(ctx, slug="test-conversation")
+        assert len(result) == 4
+        assert all("session_number" in r for r in result)
+        assert [r["session_number"] for r in result] == [1, 2, 3, 4]
+
+    def test_slug_chronological_order(self, ctx):
+        result = list_sessions(ctx, slug="test-conversation")
+        timestamps = [r["first_timestamp"] for r in result]
+        assert timestamps == sorted(timestamps)
+
+    def test_slug_not_found(self, ctx):
+        result = list_sessions(ctx, slug="nonexistent-slug")
+        assert result == []
+
+    def test_no_slug_no_session_number(self, ctx):
+        result = list_sessions(ctx)
+        assert len(result) >= 4
+        assert all("session_number" not in r for r in result)
+
+    def test_slug_with_date_filter(self, ctx):
+        result = list_sessions(ctx, slug="test-conversation", date_from="2026-01-01T12:00:00Z")
+        assert len(result) == 2  # sessions 3 and 4
+        assert [r["session_number"] for r in result] == [3, 4]

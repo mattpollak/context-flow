@@ -303,6 +303,7 @@ def list_sessions(
     date_from: str | None = None,
     date_to: str | None = None,
     tags: list[str] | None = None,
+    slug: str | None = None,
 ) -> list[dict]:
     """List recent Claude Code sessions with metadata.
 
@@ -312,6 +313,7 @@ def list_sessions(
         date_from: Filter sessions starting from this date (ISO format)
         date_to: Filter sessions up to this date (ISO format)
         tags: Filter to sessions with ALL of these tags (e.g. ["workstream:game-tracking", "has:tests"])
+        slug: Filter to sessions sharing this slug. Adds session_number field and orders chronologically.
     """
     limit = _clamp_limit(limit, default=20)
     db_path = _get_db_path(ctx)
@@ -321,9 +323,24 @@ def list_sessions(
         where_clauses = []
         params: list = []
 
-        if project:
+        session_number_lookup: dict[str, int] = {}
+
+        if slug:
+            # Get full chain first for stable session numbering
+            all_slug_sessions = conn.execute(
+                "SELECT session_id FROM sessions WHERE slug = ? ORDER BY first_timestamp ASC",
+                (slug,),
+            ).fetchall()
+            session_number_lookup = {
+                r["session_id"]: i + 1 for i, r in enumerate(all_slug_sessions)
+            }
+
+            where_clauses.append("s.slug = ?")
+            params.append(slug)
+        elif project:
             where_clauses.append("s.project_dir LIKE ?")
             params.append(f"%{project}%")
+
         if date_from:
             where_clauses.append("s.last_timestamp >= ?")
             params.append(date_from)
@@ -340,18 +357,23 @@ def list_sessions(
                 params.append(tag)
 
         where = "WHERE " + " AND ".join(where_clauses) if where_clauses else ""
+        order = "s.first_timestamp ASC" if slug else "s.last_timestamp DESC"
         params.append(limit)
 
         rows = conn.execute(
             f"""SELECT s.session_id, s.project_dir, s.slug, s.first_timestamp,
                        s.last_timestamp, s.message_count, s.git_branch, s.cwd
                 FROM sessions s {where}
-                ORDER BY s.last_timestamp DESC
+                ORDER BY {order}
                 LIMIT ?""",
             params
         ).fetchall()
 
-        return [dict(row) for row in rows]
+        results = [dict(row) for row in rows]
+        if slug:
+            for r in results:
+                r["session_number"] = session_number_lookup.get(r["session_id"])
+        return results
     finally:
         conn.close()
 
