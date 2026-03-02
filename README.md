@@ -80,6 +80,7 @@ claude --plugin-dir /path/to/relay
 
 | Command | What it does |
 |---|---|
+| `/relay:status` | Show active workstream, other workstreams, and available commands |
 | `/relay:new api-refactor Modernizing the REST API` | Create a new workstream |
 | `/relay:list` | List all workstreams grouped by status |
 | `/relay:save` | Save current workstream state to disk |
@@ -94,6 +95,7 @@ The skills also respond to natural language:
 - "save context", "save state", "save session"
 - "park this", "park workstream", "pause workstream"
 - "list workstreams", "show workstreams"
+- "relay status", "workstream status", "what am I working on"
 
 ### Conversation search
 

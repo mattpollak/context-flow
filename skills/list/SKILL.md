@@ -46,5 +46,5 @@ Display all workstreams from the registry, grouped by status.
 
 4. **Quick tips.** After the listing, show:
    ```
-   **Commands:** `/relay:new` · `/relay:switch <name>` · `/relay:park` · `/relay:save`
+   **Commands:** `/relay:status` · `/relay:new` · `/relay:switch <name>` · `/relay:save` · `/relay:park`
    ```
