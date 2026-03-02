@@ -187,6 +187,7 @@ def get_conversation(
     roles: list[str] | None = None,
     limit: int = 200,
     format: str = "markdown",
+    session: str | None = None,
 ) -> dict | str:
     """Retrieve messages from a specific conversation session.
 
@@ -199,6 +200,7 @@ def get_conversation(
         roles: Filter by message roles (e.g. ["user", "assistant"]). Options: user, assistant, tool_summary, plan
         limit: Maximum messages to return (default 200)
         format: Output format - "markdown" (human-readable, default) or "json" (structured data)
+        session: Filter to specific sessions in a multi-session slug (e.g. "4", "2-3", "1,4"). 1-based. Ignored for exact session ID lookups.
     """
     if format not in ("markdown", "json"):
         return {"error": f"Invalid format: {format}. Must be 'markdown' or 'json'."}
@@ -207,16 +209,18 @@ def get_conversation(
     conn = get_connection(db_path)
 
     try:
+        session_found_by_id = False
+
         # First, try exact session_id match
-        session = conn.execute(
+        row = conn.execute(
             "SELECT * FROM sessions WHERE session_id = ?",
             (session_id_or_slug,)
         ).fetchone()
 
-        if session:
-            # Exact session ID match — single session
-            sessions = [dict(session)]
-            session_ids = [session["session_id"]]
+        if row:
+            session_found_by_id = True
+            sessions = [dict(row)]
+            session_ids = [row["session_id"]]
         else:
             # Slug lookup — find ALL sessions in the chain
             rows = conn.execute(
@@ -230,6 +234,15 @@ def get_conversation(
 
             sessions = [dict(r) for r in rows]
             session_ids = [r["session_id"] for r in rows]
+
+        # Apply session filter (only for slug lookups, not exact session_id)
+        if session and not session_found_by_id:
+            try:
+                indices = _parse_session_range(session, len(sessions))
+            except ValueError as e:
+                return {"error": str(e)}
+            sessions = [sessions[i] for i in indices]
+            session_ids = [s["session_id"] for s in sessions]
 
         # Build message query across all sessions in the chain
         placeholders = ",".join("?" * len(session_ids))
