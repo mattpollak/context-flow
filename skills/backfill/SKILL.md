@@ -47,7 +47,7 @@ Generate session hint files for sessions that don't have them yet. This reads co
       ```bash
       bash "${CLAUDE_PLUGIN_ROOT}/scripts/write-data-file.sh" "session-hints/<timestamp>-<session_id>.json" << 'EOF'
       {
-        "session_id": "<session_id>",
+        "session_id": "<full-uuid-from-list_sessions>",
         "workstream": "<workstream from marker>",
         "summary": [
           "<3-6 bullets describing what was accomplished>",
@@ -59,7 +59,11 @@ Generate session hint files for sessions that don't have them yet. This reads co
       }
       EOF
       ```
-      Use the session's `last_timestamp` (converted to filename format) as the timestamp.
+
+      **IMPORTANT formatting rules:**
+      - `session_id` MUST be the **full UUID** from `list_sessions` (e.g., `23ae9e8c-b621-420b-b3a7-fe507d5cdd84`), never truncated
+      - `<timestamp>` in the filename must be ISO format: `YYYY-MM-DDTHHmmSSZ` (e.g., `2026-02-16T191132Z`). Convert the session's `last_timestamp` by stripping colons from the time portion and replacing the timezone with `Z`.
+      - Example filename: `2026-02-16T191132Z-23ae9e8c-b621-420b-b3a7-fe507d5cdd84.json`
 
    d. **Report progress:** "Wrote hint for session `<slug>` (<date>)"
 

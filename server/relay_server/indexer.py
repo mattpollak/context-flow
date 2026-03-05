@@ -487,6 +487,9 @@ def _parse_hint_file(hint_path: Path) -> dict | None:
         return None
     if not isinstance(summary, list):
         return None
+    if not _UUID_RE.match(session_id) or len(session_id) < 36:
+        logger.warning(f"Hint file has invalid session_id (not a full UUID): {hint_path}")
+        return None
 
     # Extract timestamp from filename: 2026-03-05T043956Z-<session_id>.json
     filename = hint_path.name

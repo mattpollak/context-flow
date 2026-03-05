@@ -252,6 +252,10 @@ def test_index_all_incremental():
 
 # --- Session hints indexing tests ---
 
+# Test UUIDs for hint tests
+_TEST_UUID = "abcdef01-2345-6789-abcd-ef0123456789"
+_TEST_UUID2 = "fedcba98-7654-3210-fedc-ba9876543210"
+
 
 def _insert_dummy_session(conn, session_id):
     """Insert a minimal session row so FK constraints pass."""
@@ -274,26 +278,26 @@ def test_index_session_hints_basic():
         hints_dir = Path(tmpdir) / "hints"
         hints_dir.mkdir()
         hint = {
-            "session_id": "abc-123",
+            "session_id": _TEST_UUID,
             "workstream": "squadkeeper",
             "summary": ["Built feature X", "Added 5 tests"],
             "decisions": ["Used pattern Y"],
         }
-        hint_file = hints_dir / "2026-03-05T043956Z-abc-123.json"
+        hint_file = hints_dir / f"2026-03-05T043956Z-{_TEST_UUID}.json"
         hint_file.write_text(json.dumps(hint))
 
         try:
-            _insert_dummy_session(conn, "abc-123")
+            _insert_dummy_session(conn, _TEST_UUID)
             count = _index_session_hints(conn, hints_dir)
             conn.commit()
             assert count == 1
 
             rows = conn.execute(
-                "SELECT * FROM session_hints WHERE session_id = 'abc-123'"
+                "SELECT * FROM session_hints WHERE session_id = ?", (_TEST_UUID,)
             ).fetchall()
             assert len(rows) == 1
             assert rows[0]["workstream"] == "squadkeeper"
-            assert rows[0]["source_file"] == "2026-03-05T043956Z-abc-123.json"
+            assert rows[0]["source_file"] == f"2026-03-05T043956Z-{_TEST_UUID}.json"
             assert rows[0]["timestamp"] == "2026-03-05T04:39:56Z"
             assert json.loads(rows[0]["summary"]) == ["Built feature X", "Added 5 tests"]
             assert json.loads(rows[0]["decisions"]) == ["Used pattern Y"]
@@ -310,11 +314,11 @@ def test_index_session_hints_idempotent():
 
         hints_dir = Path(tmpdir) / "hints"
         hints_dir.mkdir()
-        hint = {"session_id": "abc-123", "workstream": "ws", "summary": ["bullet"]}
-        (hints_dir / "2026-03-05T000000Z-abc-123.json").write_text(json.dumps(hint))
+        hint = {"session_id": _TEST_UUID, "workstream": "ws", "summary": ["bullet"]}
+        (hints_dir / f"2026-03-05T000000Z-{_TEST_UUID}.json").write_text(json.dumps(hint))
 
         try:
-            _insert_dummy_session(conn, "abc-123")
+            _insert_dummy_session(conn, _TEST_UUID)
             count1 = _index_session_hints(conn, hints_dir)
             conn.commit()
             count2 = _index_session_hints(conn, hints_dir)
@@ -337,19 +341,19 @@ def test_index_session_hints_multiple_segments():
 
         hints_dir = Path(tmpdir) / "hints"
         hints_dir.mkdir()
-        hint1 = {"session_id": "abc-123", "workstream": "ws1", "summary": ["segment 1"]}
-        hint2 = {"session_id": "abc-123", "workstream": "ws2", "summary": ["segment 2"]}
-        (hints_dir / "2026-03-05T100000Z-abc-123.json").write_text(json.dumps(hint1))
-        (hints_dir / "2026-03-05T140000Z-abc-123.json").write_text(json.dumps(hint2))
+        hint1 = {"session_id": _TEST_UUID, "workstream": "ws1", "summary": ["segment 1"]}
+        hint2 = {"session_id": _TEST_UUID, "workstream": "ws2", "summary": ["segment 2"]}
+        (hints_dir / f"2026-03-05T100000Z-{_TEST_UUID}.json").write_text(json.dumps(hint1))
+        (hints_dir / f"2026-03-05T140000Z-{_TEST_UUID}.json").write_text(json.dumps(hint2))
 
         try:
-            _insert_dummy_session(conn, "abc-123")
+            _insert_dummy_session(conn, _TEST_UUID)
             count = _index_session_hints(conn, hints_dir)
             conn.commit()
             assert count == 2
 
             rows = conn.execute(
-                "SELECT * FROM session_hints WHERE session_id = 'abc-123' ORDER BY timestamp"
+                "SELECT * FROM session_hints WHERE session_id = ? ORDER BY timestamp", (_TEST_UUID,)
             ).fetchall()
             assert len(rows) == 2
             assert rows[0]["workstream"] == "ws1"
@@ -372,11 +376,11 @@ def test_index_session_hints_skips_malformed():
         # Missing required fields
         (hints_dir / "2026-03-05T000000Z-bad2.json").write_text(json.dumps({"session_id": "x"}))
         # Valid
-        valid = {"session_id": "good", "workstream": "ws", "summary": ["ok"]}
-        (hints_dir / "2026-03-05T000000Z-good.json").write_text(json.dumps(valid))
+        valid = {"session_id": _TEST_UUID, "workstream": "ws", "summary": ["ok"]}
+        (hints_dir / f"2026-03-05T000000Z-{_TEST_UUID}.json").write_text(json.dumps(valid))
 
         try:
-            _insert_dummy_session(conn, "good")
+            _insert_dummy_session(conn, _TEST_UUID)
             count = _index_session_hints(conn, hints_dir)
             conn.commit()
             assert count == 1  # Only the valid one
@@ -393,12 +397,34 @@ def test_index_session_hints_skips_unknown_session():
 
         hints_dir = Path(tmpdir) / "hints"
         hints_dir.mkdir()
-        hint = {"session_id": "nonexistent-session", "workstream": "ws", "summary": ["test"]}
-        (hints_dir / "2026-03-05T000000Z-nonexistent.json").write_text(json.dumps(hint))
+        hint = {"session_id": _TEST_UUID, "workstream": "ws", "summary": ["test"]}
+        (hints_dir / f"2026-03-05T000000Z-{_TEST_UUID}.json").write_text(json.dumps(hint))
 
         try:
             count = _index_session_hints(conn, hints_dir)
             conn.commit()
             assert count == 0  # Skipped — session doesn't exist
+        finally:
+            conn.close()
+
+
+def test_index_session_hints_rejects_truncated_uuid():
+    """Hint files with truncated session IDs should be rejected at parse time."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = Path(tmpdir) / "test.db"
+        ensure_schema(db_path)
+        conn = get_connection(db_path)
+
+        hints_dir = Path(tmpdir) / "hints"
+        hints_dir.mkdir()
+        # Truncated UUID (8 chars instead of full 36-char UUID)
+        hint = {"session_id": "23ae9e8c", "workstream": "ws", "summary": ["test"]}
+        (hints_dir / "1739664000-23ae9e8c.json").write_text(json.dumps(hint))
+
+        try:
+            _insert_dummy_session(conn, "23ae9e8c")  # Even if session exists
+            count = _index_session_hints(conn, hints_dir)
+            conn.commit()
+            assert count == 0  # Rejected — not a full UUID
         finally:
             conn.close()
