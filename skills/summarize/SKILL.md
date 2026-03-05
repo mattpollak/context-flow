@@ -29,23 +29,24 @@ Generate a summary of recent Claude Code sessions grouped by workstream.
    ```
    If no sessions are found, tell the user there's no activity in that range and stop.
 
-3. **Map sessions to workstreams.** For each session, read its marker file to find the workstream:
+3. **Fetch summaries.** Collect all session IDs from step 2 and call:
+   ```
+   get_session_summaries(session_ids=[...])
+   ```
+   This returns pre-written summary hints for each session. Sessions with `hints_available: true` have structured bullets ready to use.
+
+4. **Map sessions without hints to workstreams.** For sessions with `hints_available: false`, read the session marker file to find the workstream:
    ```bash
    bash "${CLAUDE_PLUGIN_ROOT}/scripts/read-data-file.sh" "session-markers/<session_id>.json"
    ```
-   The marker JSON contains a `workstream` field. Sessions without markers (output is `NOT_FOUND`) go into an "Other" group.
+   Sessions without markers or hints go into an "Other" group.
 
-4. **Fetch content for each session.** Use the `get_conversation` MCP tool to get conversation content:
-   ```
-   get_conversation(session_id, roles=["user", "assistant"], limit=50, format="markdown")
-   ```
+5. **Generate summary.** Output grouped by workstream, ordered by most sessions first.
 
-5. **Determine detail level.** Based on the total time span from `DATE_FROM` to today:
-   - **≤ 3 days → Detailed:** 3-6 bullets per session, include specific outcomes (commits, files changed, decisions made)
-   - **4-14 days → Standard:** 2-4 bullets per session
-   - **15+ days → Overview:** 1-2 bullets per session, focus on themes and milestones
+   - For sessions **with hints**: use the summary bullets directly. If a session has multiple segments (different workstreams), list each segment under its respective workstream group.
+   - For sessions **without hints**: show basic metadata only — date, slug, project, message count. Add a note: *"Run `/relay:backfill` to generate summaries for older sessions."*
 
-6. **Generate summary.** Output grouped by workstream, ordered by most sessions first. Format:
+   Format:
 
    ```
    ## Activity Summary: <start date> – <end date>
@@ -53,11 +54,11 @@ Generate a summary of recent Claude Code sessions grouped by workstream.
    ### <workstream-name> (<N> sessions)
 
    **Session <number>** — `<slug>` (<date>)
-   - <bullet>
-   - <bullet>
+   - <bullet from hint>
+   - <bullet from hint>
 
    **Session <number>** — `<slug>` (<date>)
-   - <bullet>
+   - <bullet from hint>
 
    ### <other-workstream> (<N> sessions)
    ...
@@ -70,7 +71,7 @@ Generate a summary of recent Claude Code sessions grouped by workstream.
 
 ## Notes
 
-- Prioritize **breadth over depth** — mention every session, even if briefly. Users want to know what happened, not miss sessions.
-- Session markers provide the workstream grouping — this is what makes this more useful than raw `list_sessions`.
-- The `roles: ["user", "assistant"]` filter skips tool_summary noise, keeping context manageable.
-- For very long ranges with many sessions, summarize the oldest sessions more briefly and give more detail to recent ones.
+- Prioritize **breadth over depth** — mention every session, even if briefly.
+- Sessions with hints are the fast path — no conversation reading needed.
+- Sessions without hints degrade gracefully to metadata-only entries.
+- The `decisions` field from hints can be included as sub-bullets when the detail level warrants it (≤ 3 day ranges).
