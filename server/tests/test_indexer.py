@@ -5,7 +5,7 @@ import tempfile
 from pathlib import Path
 
 from relay_server.db import ensure_schema, get_connection
-from relay_server.indexer import _extract_from_entry, _parse_file, _UUID_RE, index_all
+from relay_server.indexer import _extract_from_entry, _parse_file, _UUID_RE, index_all, _index_session_hints
 
 
 # --- Entry extraction tests ---
@@ -248,3 +248,157 @@ def test_index_all_incremental():
         stats2 = index_all(db_path, transcript_root)
         assert stats2["files"] == 0
         assert stats2["skipped"] == 1  # Same file, same size
+
+
+# --- Session hints indexing tests ---
+
+
+def _insert_dummy_session(conn, session_id):
+    """Insert a minimal session row so FK constraints pass."""
+    conn.execute(
+        """INSERT OR IGNORE INTO sessions
+           (session_id, project_dir, first_timestamp, last_timestamp, message_count)
+           VALUES (?, '/tmp', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', 0)""",
+        (session_id,),
+    )
+
+
+def test_index_session_hints_basic():
+    """Hint files should be indexed into session_hints table."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = Path(tmpdir) / "test.db"
+        ensure_schema(db_path)
+        conn = get_connection(db_path)
+
+        # Create a hint file
+        hints_dir = Path(tmpdir) / "hints"
+        hints_dir.mkdir()
+        hint = {
+            "session_id": "abc-123",
+            "workstream": "squadkeeper",
+            "summary": ["Built feature X", "Added 5 tests"],
+            "decisions": ["Used pattern Y"],
+        }
+        hint_file = hints_dir / "2026-03-05T043956Z-abc-123.json"
+        hint_file.write_text(json.dumps(hint))
+
+        try:
+            _insert_dummy_session(conn, "abc-123")
+            count = _index_session_hints(conn, hints_dir)
+            conn.commit()
+            assert count == 1
+
+            rows = conn.execute(
+                "SELECT * FROM session_hints WHERE session_id = 'abc-123'"
+            ).fetchall()
+            assert len(rows) == 1
+            assert rows[0]["workstream"] == "squadkeeper"
+            assert rows[0]["source_file"] == "2026-03-05T043956Z-abc-123.json"
+            assert rows[0]["timestamp"] == "2026-03-05T04:39:56Z"
+            assert json.loads(rows[0]["summary"]) == ["Built feature X", "Added 5 tests"]
+            assert json.loads(rows[0]["decisions"]) == ["Used pattern Y"]
+        finally:
+            conn.close()
+
+
+def test_index_session_hints_idempotent():
+    """Re-indexing the same hint file should not create duplicates."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = Path(tmpdir) / "test.db"
+        ensure_schema(db_path)
+        conn = get_connection(db_path)
+
+        hints_dir = Path(tmpdir) / "hints"
+        hints_dir.mkdir()
+        hint = {"session_id": "abc-123", "workstream": "ws", "summary": ["bullet"]}
+        (hints_dir / "2026-03-05T000000Z-abc-123.json").write_text(json.dumps(hint))
+
+        try:
+            _insert_dummy_session(conn, "abc-123")
+            count1 = _index_session_hints(conn, hints_dir)
+            conn.commit()
+            count2 = _index_session_hints(conn, hints_dir)
+            conn.commit()
+            assert count1 == 1
+            assert count2 == 0  # Skipped — already indexed
+
+            rows = conn.execute("SELECT COUNT(*) as cnt FROM session_hints").fetchone()
+            assert rows["cnt"] == 1
+        finally:
+            conn.close()
+
+
+def test_index_session_hints_multiple_segments():
+    """Multiple hint files for the same session should create multiple rows."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = Path(tmpdir) / "test.db"
+        ensure_schema(db_path)
+        conn = get_connection(db_path)
+
+        hints_dir = Path(tmpdir) / "hints"
+        hints_dir.mkdir()
+        hint1 = {"session_id": "abc-123", "workstream": "ws1", "summary": ["segment 1"]}
+        hint2 = {"session_id": "abc-123", "workstream": "ws2", "summary": ["segment 2"]}
+        (hints_dir / "2026-03-05T100000Z-abc-123.json").write_text(json.dumps(hint1))
+        (hints_dir / "2026-03-05T140000Z-abc-123.json").write_text(json.dumps(hint2))
+
+        try:
+            _insert_dummy_session(conn, "abc-123")
+            count = _index_session_hints(conn, hints_dir)
+            conn.commit()
+            assert count == 2
+
+            rows = conn.execute(
+                "SELECT * FROM session_hints WHERE session_id = 'abc-123' ORDER BY timestamp"
+            ).fetchall()
+            assert len(rows) == 2
+            assert rows[0]["workstream"] == "ws1"
+            assert rows[1]["workstream"] == "ws2"
+        finally:
+            conn.close()
+
+
+def test_index_session_hints_skips_malformed():
+    """Malformed or incomplete hint files should be skipped without error."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = Path(tmpdir) / "test.db"
+        ensure_schema(db_path)
+        conn = get_connection(db_path)
+
+        hints_dir = Path(tmpdir) / "hints"
+        hints_dir.mkdir()
+        # Malformed JSON
+        (hints_dir / "2026-03-05T000000Z-bad1.json").write_text("not json")
+        # Missing required fields
+        (hints_dir / "2026-03-05T000000Z-bad2.json").write_text(json.dumps({"session_id": "x"}))
+        # Valid
+        valid = {"session_id": "good", "workstream": "ws", "summary": ["ok"]}
+        (hints_dir / "2026-03-05T000000Z-good.json").write_text(json.dumps(valid))
+
+        try:
+            _insert_dummy_session(conn, "good")
+            count = _index_session_hints(conn, hints_dir)
+            conn.commit()
+            assert count == 1  # Only the valid one
+        finally:
+            conn.close()
+
+
+def test_index_session_hints_skips_unknown_session():
+    """Hints for sessions not in the DB should be skipped gracefully."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = Path(tmpdir) / "test.db"
+        ensure_schema(db_path)
+        conn = get_connection(db_path)
+
+        hints_dir = Path(tmpdir) / "hints"
+        hints_dir.mkdir()
+        hint = {"session_id": "nonexistent-session", "workstream": "ws", "summary": ["test"]}
+        (hints_dir / "2026-03-05T000000Z-nonexistent.json").write_text(json.dumps(hint))
+
+        try:
+            count = _index_session_hints(conn, hints_dir)
+            conn.commit()
+            assert count == 0  # Skipped — session doesn't exist
+        finally:
+            conn.close()

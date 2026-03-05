@@ -333,6 +333,11 @@ def index_all(
         # Apply workstream tags from session markers
         _apply_session_markers(conn, all_session_ids)
 
+        # Index session hint files
+        hints_indexed = _index_session_hints(conn)
+        if hints_indexed:
+            logger.info(f"Indexed {hints_indexed} new session hints")
+
         conn.commit()
 
     finally:
@@ -455,6 +460,100 @@ def _apply_all_session_markers(conn: sqlite3.Connection) -> None:
             _read_and_apply_marker(conn, marker_path, sid)
 
 
+def _get_hints_dir() -> Path:
+    """Return the session hints directory path."""
+    return Path(
+        os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
+    ) / "relay" / "session-hints"
+
+
+def _parse_hint_file(hint_path: Path) -> dict | None:
+    """Parse a session hint JSON file. Returns dict or None if invalid."""
+    try:
+        with open(hint_path) as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, OSError):
+        logger.warning(f"Failed to parse hint file: {hint_path}")
+        return None
+
+    # Validate required fields
+    if not isinstance(data, dict):
+        return None
+    session_id = data.get("session_id")
+    workstream = data.get("workstream")
+    summary = data.get("summary")
+    if not session_id or not workstream or not summary:
+        logger.warning(f"Hint file missing required fields: {hint_path}")
+        return None
+    if not isinstance(summary, list):
+        return None
+
+    # Extract timestamp from filename: 2026-03-05T043956Z-<session_id>.json
+    filename = hint_path.name
+    # Split on 'Z-' to separate timestamp from session_id
+    z_idx = filename.find("Z-")
+    timestamp = filename[:z_idx + 1] if z_idx >= 0 else ""
+    # Reformat: 2026-03-05T043956Z -> 2026-03-05T04:39:56Z
+    if len(timestamp) >= 18 and "T" in timestamp:
+        t = timestamp
+        timestamp = f"{t[:13]}:{t[13:15]}:{t[15:]}"
+
+    return {
+        "session_id": session_id,
+        "timestamp": timestamp,
+        "source_file": filename,
+        "workstream": workstream,
+        "summary": json.dumps(summary),
+        "decisions": json.dumps(data["decisions"]) if data.get("decisions") else None,
+    }
+
+
+def _index_session_hints(conn: sqlite3.Connection, hints_dir: Path | None = None) -> int:
+    """Index session hint files into the session_hints table.
+
+    Returns count of newly indexed hints.
+    """
+    if hints_dir is None:
+        hints_dir = _get_hints_dir()
+    if not hints_dir.exists():
+        return 0
+
+    count = 0
+    for hint_path in sorted(hints_dir.glob("*.json")):
+        # Check if already indexed (by source_file unique constraint)
+        existing = conn.execute(
+            "SELECT 1 FROM session_hints WHERE source_file = ?",
+            (hint_path.name,)
+        ).fetchone()
+        if existing:
+            continue
+
+        parsed = _parse_hint_file(hint_path)
+        if parsed is None:
+            continue
+
+        try:
+            conn.execute(
+                """INSERT INTO session_hints
+                   (session_id, timestamp, source_file, workstream, summary, decisions)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (parsed["session_id"], parsed["timestamp"], parsed["source_file"],
+                 parsed["workstream"], parsed["summary"], parsed["decisions"]),
+            )
+            count += 1
+        except sqlite3.IntegrityError:
+            # FK violation — session not yet indexed; skip gracefully
+            logger.debug(f"Skipping hint for unknown session: {parsed['session_id']}")
+
+    return count
+
+
+def _index_all_session_hints(conn: sqlite3.Connection) -> int:
+    """Re-index all session hints. Used during full reindex."""
+    conn.execute("DELETE FROM session_hints")
+    return _index_session_hints(conn)
+
+
 def reindex(db_path: Path | str, transcript_root: Path | str | None = None) -> dict:
     """Force a full re-index by clearing all data and rebuilding."""
     conn = get_connection(db_path)
@@ -464,6 +563,7 @@ def reindex(db_path: Path | str, transcript_root: Path | str | None = None) -> d
         # since session_id is a stable UUID.
         conn.execute("DELETE FROM message_tags")
         conn.execute("DELETE FROM session_tags WHERE source = 'auto'")
+        conn.execute("DELETE FROM session_hints")
         conn.execute("DELETE FROM messages")
         conn.execute("DELETE FROM sessions")
         conn.execute("DELETE FROM indexed_files")
@@ -479,6 +579,7 @@ def reindex(db_path: Path | str, transcript_root: Path | str | None = None) -> d
     conn = get_connection(db_path)
     try:
         _apply_all_session_markers(conn)
+        _index_all_session_hints(conn)
         conn.commit()
     finally:
         conn.close()
