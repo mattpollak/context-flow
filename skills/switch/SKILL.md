@@ -31,12 +31,14 @@ Switch from the current active workstream to the one named `$ARGUMENTS`.
       bash "${CLAUDE_PLUGIN_ROOT}/scripts/complete-save.sh" "<active-name>"
       ```
 
-4. **Activate target workstream.** Park the old and activate the new in the registry:
+4. **Write session hint.** Write a session hint file for the workstream being switched away from (same format and guidelines as in `/relay:save` Step 5). Use `date -u +%Y-%m-%dT%H%M%SZ` for the timestamp and `CLAUDE_SESSION_ID` for the session ID.
+
+5. **Activate target workstream.** Park the old and activate the new in the registry:
    ```bash
    bash "${CLAUDE_PLUGIN_ROOT}/scripts/switch-registry.sh" "<old-name>" "<new-name>"
    ```
 
-5. **Load target context.** Read and display the target workstream's files:
+6. **Load target context.** Read and display the target workstream's files:
    ```bash
    bash "${CLAUDE_PLUGIN_ROOT}/scripts/read-data-file.sh" "workstreams/<name>/state.md"
    ```
@@ -46,6 +48,6 @@ Switch from the current active workstream to the one named `$ARGUMENTS`.
    bash "${CLAUDE_PLUGIN_ROOT}/scripts/read-data-file.sh" "workstreams/<name>/architecture.md"
    ```
 
-6. **Change directory.** If the target workstream has a `project_dir` set in the registry and that directory exists, tell the user: "This workstream's project directory is `<path>`. You may want to `cd` there."
+7. **Change directory.** If the target workstream has a `project_dir` set in the registry and that directory exists, tell the user: "This workstream's project directory is `<path>`. You may want to `cd` there."
 
-7. **Summarize.** Tell the user what workstream is now active and give a brief summary of its current status from state.md.
+8. **Summarize.** Tell the user what workstream is now active and give a brief summary of its current status from state.md.

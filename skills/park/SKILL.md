@@ -29,9 +29,11 @@ Park the active workstream (or the one named `$ARGUMENTS`), saving its state fir
       bash "${CLAUDE_PLUGIN_ROOT}/scripts/complete-save.sh" "<name>"
       ```
 
-3. **Park the workstream.** Set status to `"parked"` in the registry:
+3. **Write session hint.** Write a session hint file for this session segment (same format and guidelines as in `/relay:save` Step 5). Use `date -u +%Y-%m-%dT%H%M%SZ` for the timestamp and `CLAUDE_SESSION_ID` for the session ID. If the save step already wrote a hint in this session, skip this — don't write duplicate hints for the same segment.
+
+4. **Park the workstream.** Set status to `"parked"` in the registry:
    ```bash
    bash "${CLAUDE_PLUGIN_ROOT}/scripts/park-registry.sh" "<name>"
    ```
 
-4. **Confirm.** Tell the user the workstream has been parked. Mention they can resume it later with `/relay:switch <name>`.
+5. **Confirm.** Tell the user the workstream has been parked. Mention they can resume it later with `/relay:switch <name>`.

@@ -53,4 +53,35 @@ Save the current session's context to the active workstream's state file.
    bash "${CLAUDE_PLUGIN_ROOT}/scripts/complete-save.sh" "<name>"
    ```
 
-5. **Confirm.** Tell the user the state was saved. Mention the backup file exists at `state.md.bak`.
+5. **Write session hint.** Write a session hint file summarizing what was accomplished in this session segment. The hint is a small JSON file that the relay indexer will pick up for efficient summarization later.
+
+   Generate a UTC timestamp for the filename: `date -u +%Y-%m-%dT%H%M%SZ` (e.g. `2026-03-05T163000Z`).
+
+   Get the current session ID from the `CLAUDE_SESSION_ID` environment variable. If not available, skip this step silently.
+
+   ```bash
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/write-data-file.sh" "session-hints/<timestamp>-<session_id>.json" << 'EOF'
+   {
+     "session_id": "<session_id>",
+     "workstream": "<active workstream name>",
+     "summary": [
+       "<3-6 bullets describing what was accomplished>",
+       "<focus on capabilities added, features built, decisions made>",
+       "<not task counts or commit hashes>"
+     ],
+     "decisions": [
+       "<key architectural or design decisions, if any>",
+       "<omit this field if no notable decisions were made>"
+     ]
+   }
+   EOF
+   ```
+
+   **Hint writing guidelines:**
+   - Summary bullets should be **what changed**, not how much work happened. "Added broadcast messaging with recipient snapshots" not "completed 13 tasks"
+   - Include specific outcomes: features, capabilities, fixes, design decisions
+   - If the session spanned multiple workstreams, write one hint per workstream segment
+   - Keep each bullet to one line, no sub-bullets
+   - Omit the `decisions` field entirely if no notable decisions were made
+
+6. **Confirm.** Tell the user the state was saved. Mention the backup file exists at `state.md.bak`.
