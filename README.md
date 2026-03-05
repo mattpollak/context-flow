@@ -89,6 +89,7 @@ claude --plugin-dir /path/to/relay
 | `/relay:idea use websockets for real-time` | Capture an idea for future work (shown in `/relay:list`) |
 | `/relay:idea promote 2` | Promote an idea to a full workstream |
 | `/relay:summarize 48h` | Summarize recent activity grouped by workstream (standup prep, brag books) |
+| `/relay:backfill 7d` | Generate session hints for older sessions (one-time cost for efficient future summaries) |
 
 ### Natural language
 
@@ -101,6 +102,7 @@ The skills also respond to natural language:
 - "relay status", "workstream status", "what am I working on"
 - "add idea", "jot down", "remember this idea"
 - "summarize activity", "what did I work on", "standup summary", "brag book"
+- "backfill hints", "generate summaries", "backfill sessions"
 
 ### Conversation search
 
@@ -114,6 +116,7 @@ The MCP server provides tools that Claude can use directly during your session:
 | `tag_message` | Manually tag a message for future discoverability |
 | `tag_session` | Manually tag a session (e.g., associate with a workstream) |
 | `list_tags` | List all tags with counts — see what's been auto-detected |
+| `get_session_summaries` | Get pre-written session summaries (hint segments with bullets and decisions) |
 | `reindex` | Force a complete re-index from scratch |
 
 **Session-level addressing:** When a conversation spans multiple sessions (via "continue"), you can address specific sessions:
@@ -150,6 +153,8 @@ Data is stored at `${XDG_CONFIG_HOME:-$HOME/.config}/relay/`:
 ├── ideas.json                    # Pre-workstream ideas (shown in /relay:list)
 ├── session-markers/              # Links session IDs to workstreams (auto)
 │   └── <session-id>.json
+├── session-hints/                # Pre-written session summaries (auto, indexed into DB)
+│   └── <timestamp>-<session-id>.json
 └── workstreams/
     ├── api-refactor/
     │   ├── state.md              # ~80 lines, auto-loaded on session start

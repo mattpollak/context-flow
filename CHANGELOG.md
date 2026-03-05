@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.8.0] - 2026-03-05
+
+### Added
+- **Session hints** — Write-time metadata for efficient summarization. Claude writes small JSON hint files at save/park/switch/compact time. The MCP server indexes them into a `session_hints` table for fast assembly. Reduces summarize token cost by 10x+.
+- **`get_session_summaries` MCP tool** — Fetches pre-written session summaries from the database in one query. Returns structured segments with summary bullets and decisions.
+- **`/relay:backfill` skill** — Generate session hints for older sessions interactively. Reads conversations and writes structured summaries as a one-time cost.
+
+### Changed
+- **`/relay:summarize`** — Now reads pre-written hints instead of fetching full conversation content. Sessions without hints degrade gracefully to metadata-only entries.
+- **`/relay:save`, `/relay:park`, `/relay:switch`** — Now write session hint files after saving state.
+- **PreCompact hook** — Now instructs Claude to write a session hint before context compression.
+- **Indexer** — Scans `session-hints/` directory on startup and indexes hint files into `session_hints` table.
+
 ## [0.7.0] - 2026-03-05
 
 ### Added
