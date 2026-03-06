@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.9.0] - 2026-03-05
+
+### Added
+- **Multi-instance support** — Multiple workstreams can be active simultaneously. Run separate Claude Code instances (e.g., one per git worktree) each attached to a different workstream without conflicts.
+- **`attach-workstream.sh`** — New script that binds a session to a workstream (writes marker + loads state) in one step. Warns if another live session is using the same workstream.
+
+### Changed
+- **`session-start.sh`** — Detects 0, 1, or 2+ active workstreams. Single active auto-attaches (unchanged). Multiple active lists them and asks the user to pick.
+- **`session-end.sh`** — Uses session marker (not `status == "active"`) to find this session's workstream.
+- **`pre-compact-save.sh`** — Uses session marker (not `status == "active"`) to find this session's workstream.
+- **`switch-registry.sh`** — Only activates the target workstream. No longer parks the old one.
+- **`/relay:new`** — No longer auto-parks other active workstreams. New workstream created alongside existing active ones.
+- **`/relay:switch`** — Detaches from current workstream and attaches to target. Both stay active. Use `/relay:park` to explicitly deactivate.
+- **`/relay:status`** — Shows attached workstream and lists other active workstreams.
+
 ## [0.8.1] - 2026-03-05
 
 ### Fixed
