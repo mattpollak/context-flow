@@ -53,7 +53,7 @@ fi
 
 # Find all active workstreams
 ACTIVE_NAMES=$(jq -r '[.workstreams | to_entries[] | select(.value.status == "active") | .key] | join(",")' "$REGISTRY" 2>/dev/null || true)
-ACTIVE_COUNT=$(echo "$ACTIVE_NAMES" | tr ',' '\n' | grep -c . 2>/dev/null || echo "0")
+ACTIVE_COUNT=$(echo "$ACTIVE_NAMES" | tr ',' '\n' | grep -c . || true)
 
 if [ "$ACTIVE_COUNT" -eq 0 ]; then
   # No active workstreams — list parked ones

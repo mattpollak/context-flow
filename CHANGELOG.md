@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.9.1] - 2026-03-05
+
+### Fixed
+- **Empty registry crash** — `session-start.sh` incorrectly hit the "multiple active workstreams" path when no workstreams existed. Caused by `grep -c . || echo "0"` producing a multiline value (`"0\n0"`) that failed integer comparison.
+
 ## [0.9.0] - 2026-03-05
 
 ### Added
