@@ -1147,6 +1147,7 @@ def create_workstream(
     description: str,
     ctx: Context[ServerSession, AppContext],
     project_dir: str = "",
+    color: str = "",
 ) -> dict:
     """Create a new workstream with initial state file.
 
@@ -1154,10 +1155,34 @@ def create_workstream(
         name: Workstream name (lowercase, hyphens, e.g. "api-refactor")
         description: Brief description of the workstream
         project_dir: Project directory path (optional)
+        color: Background color hex (e.g. "#0d1a2d") for terminal decoration (optional)
     """
     from .workstreams import get_data_dir
     from .workstreams import create_workstream as _create
-    return _create(data_dir=get_data_dir(), name=name, description=description, project_dir=project_dir)
+    return _create(data_dir=get_data_dir(), name=name, description=description, project_dir=project_dir, color=color)
+
+
+@mcp.tool()
+def update_workstream(
+    name: str,
+    ctx: Context[ServerSession, AppContext],
+    description: str | None = None,
+    project_dir: str | None = None,
+    color: str | None = None,
+) -> dict:
+    """Update fields on an existing workstream.
+
+    Only provided fields are changed. Pass empty string for color to remove it.
+
+    Args:
+        name: Workstream name
+        description: New description (optional)
+        project_dir: New project directory path (optional)
+        color: Background color hex for terminal decoration, e.g. "#0d1a2d" (optional, empty string removes)
+    """
+    from .workstreams import get_data_dir
+    from .workstreams import update_workstream as _update
+    return _update(data_dir=get_data_dir(), name=name, description=description, project_dir=project_dir, color=color)
 
 
 @mcp.tool()

@@ -1,4 +1,4 @@
-"""Tests for create_workstream and park_workstream."""
+"""Tests for create_workstream, update_workstream, and park_workstream."""
 
 import json
 import tempfile
@@ -49,6 +49,72 @@ def test_create_duplicate_fails():
             from relay_server.workstreams import create_workstream
             create_workstream(data_dir=data_dir, name="ws1", description="First")
             result = create_workstream(data_dir=data_dir, name="ws1", description="Dupe")
+            assert result["status"] == "error"
+        finally:
+            conn.close()
+
+
+def test_create_workstream_with_color():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        _, data_dir, conn = _setup(tmpdir)
+        try:
+            from relay_server.workstreams import create_workstream
+            result = create_workstream(
+                data_dir=data_dir,
+                name="colorful",
+                description="Has a color",
+                color="#0d1a2d",
+            )
+            assert result["status"] == "created"
+            reg = read_registry(data_dir)
+            assert reg["workstreams"]["colorful"]["color"] == "#0d1a2d"
+        finally:
+            conn.close()
+
+
+def test_update_workstream():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        _, data_dir, conn = _setup(tmpdir)
+        try:
+            from relay_server.workstreams import create_workstream, update_workstream
+            create_workstream(data_dir=data_dir, name="ws1", description="Original")
+
+            result = update_workstream(
+                data_dir=data_dir, name="ws1", description="Updated", color="#1a0d2d"
+            )
+            assert result["status"] == "updated"
+            assert "description" in result["fields"]
+            assert "color" in result["fields"]
+
+            reg = read_registry(data_dir)
+            assert reg["workstreams"]["ws1"]["description"] == "Updated"
+            assert reg["workstreams"]["ws1"]["color"] == "#1a0d2d"
+        finally:
+            conn.close()
+
+
+def test_update_workstream_remove_color():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        _, data_dir, conn = _setup(tmpdir)
+        try:
+            from relay_server.workstreams import create_workstream, update_workstream
+            create_workstream(data_dir=data_dir, name="ws1", description="Test", color="#aabbcc")
+
+            result = update_workstream(data_dir=data_dir, name="ws1", color="")
+            assert result["status"] == "updated"
+
+            reg = read_registry(data_dir)
+            assert "color" not in reg["workstreams"]["ws1"]
+        finally:
+            conn.close()
+
+
+def test_update_nonexistent_fails():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        _, data_dir, conn = _setup(tmpdir)
+        try:
+            from relay_server.workstreams import update_workstream
+            result = update_workstream(data_dir=data_dir, name="nope", color="#aaa")
             assert result["status"] == "error"
         finally:
             conn.close()

@@ -77,6 +77,7 @@ def create_workstream(
     name: str,
     description: str = "",
     project_dir: str = "",
+    color: str = "",
 ) -> dict:
     """Create a new workstream: add to registry, write initial state file."""
     registry = read_registry(data_dir)
@@ -91,6 +92,8 @@ def create_workstream(
         "last_touched": date,
         "project_dir": project_dir,
     }
+    if color:
+        entry["color"] = color
     registry["workstreams"][name] = entry
     atomic_write(data_dir / "workstreams.json", json.dumps(registry, indent=2) + "\n")
 
@@ -309,6 +312,41 @@ def switch_workstream(
         "supplementary": supplementary,
         "project_dir": registry["workstreams"][to_name].get("project_dir", ""),
     }
+
+
+def update_workstream(
+    *,
+    data_dir: Path,
+    name: str,
+    description: str | None = None,
+    project_dir: str | None = None,
+    color: str | None = None,
+) -> dict:
+    """Update mutable fields on an existing workstream."""
+    registry = read_registry(data_dir)
+    if name not in registry["workstreams"]:
+        return {"status": "error", "message": f"Workstream '{name}' not found"}
+
+    entry = registry["workstreams"][name]
+    updated = []
+    if description is not None:
+        entry["description"] = description
+        updated.append("description")
+    if project_dir is not None:
+        entry["project_dir"] = project_dir
+        updated.append("project_dir")
+    if color is not None:
+        if color:
+            entry["color"] = color
+        else:
+            entry.pop("color", None)
+        updated.append("color")
+
+    if not updated:
+        return {"status": "noop", "message": "No fields to update"}
+
+    atomic_write(data_dir / "workstreams.json", json.dumps(registry, indent=2) + "\n")
+    return {"status": "updated", "workstream": name, "fields": updated}
 
 
 def manage_idea(

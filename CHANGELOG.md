@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.11.0] - 2026-03-06
+
+### Added
+- **Terminal decoration** — Per-workstream background color and tab title via Claude Code's `statusLine` setting. Colors auto-generated from workstream name hash, with optional manual override via `"color"` field in registry. Supports Windows Terminal (OSC 0/11), iTerm2 (AppleScript + OSC 11), Ghostty, and other xterm-compatible terminals.
+- **`update_workstream` MCP tool** — Update description, project_dir, and/or color on an existing workstream. Pass empty string for color to remove override.
+- **`/relay:setup-relay` skill** — Interactive guided setup for terminal decoration preferences and summary report directory. Detects terminal and shell, handles existing statusLine configs, saves preferences to `relay.json`.
+- **`scripts/statusline.sh`** — Bundled statusline script. Reads `terminal_color` and `terminal_title` preferences from `relay.json`. Shortens `$HOME` paths to `~`.
+- **`create_workstream`** — Now accepts optional `color` parameter for background color.
+- **`/relay:new` skill** — Asks about custom color when terminal decoration is configured.
+
 ## [0.10.3] - 2026-03-06
 
 ### Changed
