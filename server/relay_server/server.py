@@ -979,6 +979,25 @@ def list_workstreams(ctx: Context[ServerSession, AppContext]) -> dict:
 
 
 @mcp.tool()
+def manage_idea(
+    action: str,
+    ctx: Context[ServerSession, AppContext],
+    text: str | None = None,
+    idea_id: int | None = None,
+) -> dict:
+    """Add, remove, or list ideas for future work.
+
+    Args:
+        action: "add", "remove", or "list"
+        text: Idea text (required for "add")
+        idea_id: Idea ID number (required for "remove")
+    """
+    from .workstreams import get_data_dir
+    from .workstreams import manage_idea as _manage
+    return _manage(data_dir=get_data_dir(), action=action, text=text, idea_id=idea_id)
+
+
+@mcp.tool()
 def reindex(ctx: Context[ServerSession, AppContext]) -> dict:
     """Force a complete re-index of all conversation transcripts.
 

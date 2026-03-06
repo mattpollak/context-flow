@@ -311,6 +311,46 @@ def switch_workstream(
     }
 
 
+def manage_idea(
+    *,
+    data_dir: Path,
+    action: str,
+    text: str | None = None,
+    idea_id: int | None = None,
+) -> dict:
+    """Add, remove, or list ideas."""
+    ideas_path = data_dir / "ideas.json"
+    ideas = []
+    if ideas_path.exists():
+        try:
+            ideas = json.loads(ideas_path.read_text())
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    if action == "list":
+        return {"status": "ok", "ideas": ideas}
+
+    if action == "add":
+        if not text:
+            return {"status": "error", "message": "Text is required"}
+        new_id = max((i.get("id", 0) for i in ideas), default=0) + 1
+        ideas.append({"id": new_id, "text": text, "added": today()})
+        atomic_write(ideas_path, json.dumps(ideas, indent=2) + "\n")
+        return {"status": "added", "id": new_id, "text": text}
+
+    if action == "remove":
+        if idea_id is None:
+            return {"status": "error", "message": "idea_id is required"}
+        original_len = len(ideas)
+        ideas = [i for i in ideas if i.get("id") != idea_id]
+        if len(ideas) == original_len:
+            return {"status": "error", "message": f"Idea {idea_id} not found"}
+        atomic_write(ideas_path, json.dumps(ideas, indent=2) + "\n")
+        return {"status": "removed", "id": idea_id}
+
+    return {"status": "error", "message": f"Unknown action: {action}"}
+
+
 def list_workstreams(*, data_dir: Path) -> dict:
     """List all workstreams grouped by status, plus ideas."""
     registry = read_registry(data_dir)
