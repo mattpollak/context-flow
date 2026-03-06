@@ -71,6 +71,95 @@ def utc_timestamp() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def create_workstream(
+    *,
+    data_dir: Path,
+    name: str,
+    description: str = "",
+    project_dir: str = "",
+) -> dict:
+    """Create a new workstream: add to registry, write initial state file."""
+    registry = read_registry(data_dir)
+    if name in registry["workstreams"]:
+        return {"status": "error", "message": f"Workstream '{name}' already exists"}
+
+    date = today()
+    entry = {
+        "status": "active",
+        "description": description,
+        "created": date,
+        "last_touched": date,
+        "project_dir": project_dir,
+    }
+    registry["workstreams"][name] = entry
+    atomic_write(data_dir / "workstreams.json", json.dumps(registry, indent=2) + "\n")
+
+    # Write initial state file
+    state = f"""# {name}
+
+## Metadata
+- **Description:** {description}
+- **Created:** {date}
+- **Project dir:** {project_dir}
+
+## Current Status
+New workstream — no work done yet.
+
+## Key Decisions
+(none yet)
+
+## Next Steps
+- Define initial goals
+"""
+    ws_dir = data_dir / "workstreams" / name
+    ws_dir.mkdir(parents=True, exist_ok=True)
+    atomic_write(ws_dir / "state.md", state)
+
+    return {
+        "status": "created",
+        "workstream": name,
+        "state_file": str(ws_dir / "state.md"),
+    }
+
+
+def park_workstream(
+    *,
+    data_dir: Path,
+    conn: sqlite3.Connection,
+    name: str,
+    state_content: str,
+    session_id: str | None = None,
+    hint_summary: list[str] | None = None,
+    hint_decisions: list[str] | None = None,
+) -> dict:
+    """Save state then set workstream status to parked."""
+    registry = read_registry(data_dir)
+    if name not in registry["workstreams"]:
+        return {"status": "error", "message": f"Workstream '{name}' not found"}
+
+    # Save state first (reuse save logic)
+    save_result = save_workstream(
+        data_dir=data_dir,
+        conn=conn,
+        name=name,
+        state_content=state_content,
+        session_id=session_id,
+        hint_summary=hint_summary,
+        hint_decisions=hint_decisions,
+    )
+
+    # Set status to parked
+    registry = read_registry(data_dir)  # re-read (save_workstream updated it)
+    registry["workstreams"][name]["status"] = "parked"
+    atomic_write(data_dir / "workstreams.json", json.dumps(registry, indent=2) + "\n")
+
+    return {
+        "status": "parked",
+        "workstream": name,
+        **{k: v for k, v in save_result.items() if k != "status"},
+    }
+
+
 def save_workstream(
     *,
     data_dir: Path,

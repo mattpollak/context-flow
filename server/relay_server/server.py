@@ -878,6 +878,57 @@ def save_workstream(
 
 
 @mcp.tool()
+def create_workstream(
+    name: str,
+    description: str,
+    ctx: Context[ServerSession, AppContext],
+    project_dir: str = "",
+) -> dict:
+    """Create a new workstream with initial state file.
+
+    Args:
+        name: Workstream name (lowercase, hyphens, e.g. "api-refactor")
+        description: Brief description of the workstream
+        project_dir: Project directory path (optional)
+    """
+    from .workstreams import get_data_dir
+    from .workstreams import create_workstream as _create
+    return _create(data_dir=get_data_dir(), name=name, description=description, project_dir=project_dir)
+
+
+@mcp.tool()
+def park_workstream(
+    name: str,
+    state_content: str,
+    ctx: Context[ServerSession, AppContext],
+    session_id: str | None = None,
+    hint_summary: list[str] | None = None,
+    hint_decisions: list[str] | None = None,
+) -> dict:
+    """Save workstream state and set status to parked.
+
+    Args:
+        name: Workstream name to park
+        state_content: Full markdown content for state.md (keep under 80 lines)
+        session_id: Current session UUID (from relay-session-id context)
+        hint_summary: 3-6 bullets describing what was accomplished
+        hint_decisions: Key decisions made (omit if none)
+    """
+    from .workstreams import get_data_dir
+    from .workstreams import park_workstream as _park
+
+    db_path = _get_db_path(ctx)
+    conn = get_connection(db_path)
+    try:
+        return _park(
+            data_dir=get_data_dir(), conn=conn, name=name, state_content=state_content,
+            session_id=session_id, hint_summary=hint_summary, hint_decisions=hint_decisions,
+        )
+    finally:
+        conn.close()
+
+
+@mcp.tool()
 def reindex(ctx: Context[ServerSession, AppContext]) -> dict:
     """Force a complete re-index of all conversation transcripts.
 
