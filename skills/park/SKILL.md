@@ -12,28 +12,18 @@ Park the active workstream (or the one named `$ARGUMENTS`), saving its state fir
 
 ## Steps
 
-1. **Determine target.** If `$ARGUMENTS` is provided, park that workstream. Otherwise, read the registry and park the currently active workstream. If no workstream is active and no name was given, tell the user and stop.
-   ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/scripts/read-data-file.sh" "workstreams.json"
+1. **Determine target.** If `$ARGUMENTS` is provided, park that workstream. Otherwise, call `list_workstreams` to find the active workstream. If none active and no name given, tell the user and stop.
+
+2. **Park.** Call `park_workstream`:
    ```
-
-2. **Save state first.** Before parking, save the current state:
-   a. Write updated state to `state.md.new` (under 80 lines: current status, key decisions, next steps):
-      ```bash
-      bash "${CLAUDE_PLUGIN_ROOT}/scripts/write-data-file.sh" "workstreams/<name>/state.md.new" << 'STATEEOF'
-      <content>
-      STATEEOF
-      ```
-   b. Complete the save (rotate files, update registry, reset counter):
-      ```bash
-      bash "${CLAUDE_PLUGIN_ROOT}/scripts/complete-save.sh" "<name>"
-      ```
-
-3. **Write session hint.** Write a session hint file for this session segment (same format and guidelines as in `/relay:save` Step 5). Use `date -u +%Y-%m-%dT%H%M%SZ` for the timestamp and the session ID from the `relay-session-id:` line in your session context. If the save step already wrote a hint in this session, skip this — don't write duplicate hints for the same segment.
-
-4. **Park the workstream.** Set status to `"parked"` in the registry:
-   ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/scripts/park-registry.sh" "<name>"
+   park_workstream(
+     name="<name>",
+     state_content="<80-line state markdown>",
+     session_id="<from relay-session-id context>",
+     hint_summary=["<3-6 bullets>"],
+     hint_decisions=["<decisions if any>"]
+   )
    ```
+   See `/relay:save` for state file content guidelines and hint writing guidelines.
 
-5. **Confirm.** Tell the user the workstream has been parked. Mention they can resume it later with `/relay:switch <name>`.
+3. **Confirm.** Tell the user the workstream is parked. Mention they can resume with `/relay:switch <name>`.

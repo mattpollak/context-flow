@@ -11,36 +11,24 @@ Show this session's attached workstream status, plus a summary of other workstre
 
 ## Steps
 
-1. **Read registry.** Run the helper script to read the registry:
-   ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/scripts/read-data-file.sh" "workstreams.json"
+1. **Fetch data.** Call `list_workstreams` to get all workstreams grouped by status.
+
+2. **Identify attached workstream.** Check the `relay:` line in your session context for the workstream name. If none, check the active workstreams from the response.
+
+3. **If an attached/active workstream exists:** Display:
    ```
-   If the output is `NOT_FOUND`, tell the user no workstreams exist yet and suggest `/relay:new`.
+   ## Attached: <name>
+   **Description:** <description>
+   **Project:** <project_dir or "none">
+   **Last touched:** <last_touched>
+   ```
+   Then call `switch_workstream(to_name="<name>")` to get the current state content (this is a read-only operation -- if already attached, it just returns the state without saving anything). Display the Current Status and Next Steps sections from the state.
 
-2. **Identify attached workstream.** Check the `relay:` line in your session context for the workstream name. If none, check the registry for active workstreams.
+   **Alternative:** If the workstream state was already loaded in session context (from session start), just display it directly without an extra MCP call.
 
-3. **If an attached/active workstream exists:**
-   a. Read its state file:
-      ```bash
-      bash "${CLAUDE_PLUGIN_ROOT}/scripts/read-data-file.sh" "workstreams/<name>/state.md"
-      ```
-   b. Display a status summary:
-      ```
-      ## Attached: <name>
-      **Description:** <description>
-      **Project:** <project_dir or "none">
-      **Last touched:** <last_touched>
+4. **If no attached workstream:** Say "No workstream attached to this session."
 
-      ### Current Status
-      <Current Status section from state.md, or "(no state file)" if NOT_FOUND>
-
-      ### Next Steps
-      <Next Steps section from state.md, if present>
-      ```
-
-4. **If no attached workstream:** Say "No workstream attached to this session." and skip to step 5.
-
-5. **Show other workstreams.** From the registry, list other active, parked, and completed workstreams:
+5. **Show other workstreams.** From the `list_workstreams` response:
    ```
    **Other active:** name1, name2 (or "none")
    **Parked:** name1, name2 (or "none")
