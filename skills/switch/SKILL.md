@@ -8,7 +8,7 @@ argument-hint: "<workstream-name>"
 
 # Switch Workstream
 
-Switch from the current active workstream to the one named `$ARGUMENTS`.
+Switch this session from the current workstream to the one named `$ARGUMENTS`. Both workstreams stay active — use `/relay:park` to explicitly deactivate one.
 
 ## Steps
 
@@ -19,35 +19,36 @@ Switch from the current active workstream to the one named `$ARGUMENTS`.
 
 2. **Validate target exists.** Check that `$ARGUMENTS` exists in the registry output. If not, list available workstreams and stop.
 
-3. **Save current workstream.** If there is an active workstream:
+3. **Save current workstream.** If this session is attached to a workstream (check the `relay:` line in your session context):
    a. Write updated state to `state.md.new` (under 80 lines: current status, key decisions, next steps):
       ```bash
-      bash "${CLAUDE_PLUGIN_ROOT}/scripts/write-data-file.sh" "workstreams/<active-name>/state.md.new" << 'STATEEOF'
+      bash "${CLAUDE_PLUGIN_ROOT}/scripts/write-data-file.sh" "workstreams/<current-name>/state.md.new" << 'STATEEOF'
       <content>
       STATEEOF
       ```
    b. Complete the save (rotate files, update registry, reset counter):
       ```bash
-      bash "${CLAUDE_PLUGIN_ROOT}/scripts/complete-save.sh" "<active-name>"
+      bash "${CLAUDE_PLUGIN_ROOT}/scripts/complete-save.sh" "<current-name>"
       ```
 
 4. **Write session hint.** Write a session hint file for the workstream being switched away from (same format and guidelines as in `/relay:save` Step 5). Use `date -u +%Y-%m-%dT%H%M%SZ` for the timestamp and the session ID from the `relay-session-id:` line in your session context.
 
-5. **Activate target workstream.** Park the old and activate the new in the registry:
+5. **Activate target workstream.** Ensure the target is active in the registry (handles the case where it's parked):
    ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/scripts/switch-registry.sh" "<old-name>" "<new-name>"
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/switch-registry.sh" "<new-name>"
    ```
 
-6. **Load target context.** Read and display the target workstream's files:
+6. **Attach to target.** Write session marker and load state:
    ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/scripts/read-data-file.sh" "workstreams/<name>/state.md"
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/attach-workstream.sh" "<new-name>" "<session-id>"
    ```
-   Also check for optional files (skip any that return `NOT_FOUND`):
+
+7. **Load supplementary files.** Check for optional files (skip any that return `NOT_FOUND`):
    ```bash
    bash "${CLAUDE_PLUGIN_ROOT}/scripts/read-data-file.sh" "workstreams/<name>/plan.md"
    bash "${CLAUDE_PLUGIN_ROOT}/scripts/read-data-file.sh" "workstreams/<name>/architecture.md"
    ```
 
-7. **Change directory.** If the target workstream has a `project_dir` set in the registry and that directory exists, tell the user: "This workstream's project directory is `<path>`. You may want to `cd` there."
+8. **Change directory.** If the target workstream has a `project_dir` set in the registry and that directory exists, tell the user: "This workstream's project directory is `<path>`. You may want to `cd` there."
 
-8. **Summarize.** Tell the user what workstream is now active and give a brief summary of its current status from state.md.
+9. **Summarize.** Tell the user what workstream is now active and give a brief summary of its current status from state.md.
