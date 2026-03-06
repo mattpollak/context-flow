@@ -628,8 +628,17 @@ def _get_markers_dir() -> Path:
     ) / "relay" / "session-markers"
 
 
-def _read_marker_workstream(session_id: str, markers_dir: Path | None = None) -> str | None:
-    """Read workstream name from a session marker file. Returns None if not found."""
+def _read_marker_workstream(session_id: str, conn: sqlite3.Connection | None = None, markers_dir: Path | None = None) -> str | None:
+    """Read workstream name from DB marker (preferred) or file fallback."""
+    # Try DB first
+    if conn:
+        row = conn.execute(
+            "SELECT workstream FROM session_markers WHERE session_id = ?",
+            (session_id,),
+        ).fetchone()
+        if row:
+            return row["workstream"]
+    # Fall back to file
     if markers_dir is None:
         markers_dir = _get_markers_dir()
     marker_path = markers_dir / f"{session_id}.json"
@@ -637,8 +646,7 @@ def _read_marker_workstream(session_id: str, markers_dir: Path | None = None) ->
         return None
     try:
         with open(marker_path) as f:
-            data = json.load(f)
-        return data.get("workstream")
+            return json.load(f).get("workstream")
     except (json.JSONDecodeError, OSError):
         return None
 
@@ -724,7 +732,7 @@ def _summarize_activity_impl(
                 })
         else:
             # Try session marker
-            marker_ws = _read_marker_workstream(sid, markers_dir)
+            marker_ws = _read_marker_workstream(sid, conn=conn, markers_dir=markers_dir)
             ws = marker_ws or "other"
             ws_groups.setdefault(ws, [])
             ws_groups[ws].append({

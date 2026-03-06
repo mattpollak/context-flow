@@ -234,6 +234,34 @@ def test_backfill_hint_in_footer():
             conn.close()
 
 
+def test_db_marker_preferred_over_file():
+    """When a marker exists in both DB and file, DB wins."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path, conn = _setup_db(tmpdir)
+        markers_dir = Path(tmpdir) / "markers"
+        markers_dir.mkdir()
+        try:
+            sid = conn.execute("SELECT session_id FROM sessions LIMIT 1").fetchone()["session_id"]
+
+            # Write DB marker pointing to "db-ws"
+            conn.execute(
+                "INSERT INTO session_markers (session_id, workstream, attached_at) VALUES (?, ?, ?)",
+                (sid, "db-ws", "2026-01-01T00:00:00Z"),
+            )
+            conn.commit()
+
+            # Write file marker pointing to "file-ws"
+            marker_path = markers_dir / f"{sid}.json"
+            marker_path.write_text(json.dumps({"workstream": "file-ws"}))
+
+            # Import and test directly
+            from relay_server.server import _read_marker_workstream
+            result = _read_marker_workstream(sid, conn=conn, markers_dir=markers_dir)
+            assert result == "db-ws"
+        finally:
+            conn.close()
+
+
 def test_other_sorts_last():
     """'other' workstream appears after named workstreams."""
     with tempfile.TemporaryDirectory() as tmpdir:
