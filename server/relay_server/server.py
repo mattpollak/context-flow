@@ -632,12 +632,15 @@ def _read_marker_workstream(session_id: str, conn: sqlite3.Connection | None = N
     """Read workstream name from DB marker (preferred) or file fallback."""
     # Try DB first
     if conn:
-        row = conn.execute(
-            "SELECT workstream FROM session_markers WHERE session_id = ?",
-            (session_id,),
-        ).fetchone()
-        if row:
-            return row["workstream"]
+        try:
+            row = conn.execute(
+                "SELECT workstream FROM session_markers WHERE session_id = ?",
+                (session_id,),
+            ).fetchone()
+            if row:
+                return row["workstream"]
+        except sqlite3.OperationalError:
+            pass  # Table doesn't exist yet (pre-v0.10.0 DB)
     # Fall back to file
     if markers_dir is None:
         markers_dir = _get_markers_dir()
