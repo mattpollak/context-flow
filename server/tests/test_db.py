@@ -105,3 +105,23 @@ def test_session_hints_table_exists():
             assert rows[1]["decisions"] == '["d1"]'
         finally:
             conn.close()
+
+
+def test_session_markers_table_exists():
+    """session_markers table should be created by ensure_schema."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = Path(tmpdir) / "test.db"
+        ensure_schema(db_path)
+        conn = get_connection(db_path)
+        try:
+            # Table exists and accepts inserts
+            conn.execute(
+                """INSERT INTO session_markers (session_id, workstream, attached_at)
+                   VALUES ('test-sid', 'test-ws', '2026-01-01T00:00:00Z')"""
+            )
+            row = conn.execute(
+                "SELECT * FROM session_markers WHERE session_id = 'test-sid'"
+            ).fetchone()
+            assert row["workstream"] == "test-ws"
+        finally:
+            conn.close()

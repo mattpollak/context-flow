@@ -77,6 +77,12 @@ CREATE TABLE IF NOT EXISTS session_hints (
 );
 CREATE INDEX IF NOT EXISTS idx_session_hints_session ON session_hints(session_id);
 CREATE INDEX IF NOT EXISTS idx_session_hints_workstream ON session_hints(workstream);
+
+CREATE TABLE IF NOT EXISTS session_markers (
+    session_id TEXT PRIMARY KEY,
+    workstream TEXT NOT NULL,
+    attached_at TEXT NOT NULL
+);
 """
 
 # Triggers must be created separately — they fail inside executescript
