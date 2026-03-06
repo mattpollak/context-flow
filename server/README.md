@@ -1,9 +1,19 @@
 # relay-server
 
-MCP server for searching Claude Code conversation history. Indexes JSONL transcript files and provides full-text search via SQLite FTS5.
+MCP server for Claude Code conversation history search and workstream management. Indexes JSONL transcript files into SQLite FTS5, and provides server-side tools for atomic workstream operations.
 
 ## Tools
 
+**Workstream management:**
+- **save_workstream** — Atomically save state file (with backup), update registry, write session hint + marker to DB
+- **create_workstream** — Create a new workstream: add to registry, write initial state file
+- **park_workstream** — Save state and set workstream status to parked
+- **switch_workstream** — Save current workstream, activate target, write session marker, return target state
+- **list_workstreams** — List all workstreams grouped by status plus ideas
+- **manage_idea** — Add, remove, or list ideas for future work
+- **summarize_activity** — Summarize recent activity grouped by workstream. Returns pre-formatted markdown.
+
+**Conversation search:**
 - **search_history** — Full-text search across all indexed conversations. Results include `session_number` within slug chains.
 - **get_conversation** — Retrieve messages from a specific session. Supports `session` param for filtering multi-session slugs (e.g. `"4"`, `"2-3"`, `"1,4"`).
 - **list_sessions** — List recent sessions with metadata. Use `slug` param to get a session index with numbered sessions.
@@ -11,7 +21,6 @@ MCP server for searching Claude Code conversation history. Indexes JSONL transcr
 - **tag_session** — Manually tag a session (e.g., associate with a workstream)
 - **list_tags** — List all tags with counts, filterable by scope (message/session/all)
 - **get_session_summaries** — Get pre-written session summaries (hint segments with summary bullets and decisions)
-- **summarize_activity** — Summarize recent activity grouped by workstream. Returns pre-formatted markdown with session bullets, decisions, and metadata. Joins sessions + hints + session markers server-side.
 - **reindex** — Force a complete re-index from scratch
 
 ## Usage

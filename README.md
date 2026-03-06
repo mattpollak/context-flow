@@ -53,9 +53,7 @@ Start a new Claude Code session — you should see the SessionStart hook fire. I
 
 ### Permissions
 
-When you save, switch, or park a workstream, Claude runs helper scripts bundled with the plugin (e.g., `complete-save.sh` to atomically rotate state files). A bundled `PreToolUse` hook automatically approves these commands — **no manual permission setup is needed.**
-
-The hook (`scripts/approve-scripts.sh`) checks whether each Bash command targets a script inside the plugin's own `scripts/` directory. Only exact matches against `${CLAUDE_PLUGIN_ROOT}/scripts/` are approved; all other commands go through the normal permission flow.
+Core workstream operations (save, create, park, switch, list, ideas) are handled by MCP tools — **no bash permission prompts needed**. Hooks (session start, context monitor, pre-compact) still run as bash scripts and are automatically approved by a bundled `PreToolUse` hook (`scripts/approve-scripts.sh`).
 
 ### Updating
 
@@ -105,9 +103,23 @@ The skills also respond to natural language:
 - "summarize activity", "what did I work on", "standup summary", "brag book"
 - "backfill hints", "generate summaries", "backfill sessions"
 
-### Conversation search
+### MCP tools
 
-The MCP server provides tools that Claude can use directly during your session:
+The MCP server provides tools that Claude uses directly during your session — both for conversation search and workstream management:
+
+**Workstream management:**
+
+| Tool | What it does |
+|---|---|
+| `save_workstream` | Atomically save state file (with backup), update registry, write session hint + marker to DB — all in one call |
+| `create_workstream` | Create a new workstream: add to registry, write initial state file |
+| `park_workstream` | Save state and set workstream status to parked |
+| `switch_workstream` | Save current workstream, activate target, write session marker, return target state |
+| `list_workstreams` | List all workstreams grouped by status (active, parked, completed) plus ideas |
+| `manage_idea` | Add, remove, or list ideas for future work |
+| `summarize_activity` | Summarize recent activity grouped by workstream — returns pre-formatted markdown |
+
+**Conversation search:**
 
 | Tool | What it does |
 |---|---|
@@ -118,7 +130,6 @@ The MCP server provides tools that Claude can use directly during your session:
 | `tag_session` | Manually tag a session (e.g., associate with a workstream) |
 | `list_tags` | List all tags with counts — see what's been auto-detected |
 | `get_session_summaries` | Get pre-written session summaries (hint segments with bullets and decisions) |
-| `summarize_activity` | Summarize recent activity grouped by workstream — returns pre-formatted markdown. Powers `/relay:summarize`. |
 | `reindex` | Force a complete re-index from scratch |
 
 **Session-level addressing:** When a conversation spans multiple sessions (via "continue"), you can address specific sessions:
@@ -153,9 +164,9 @@ Data is stored at `${XDG_CONFIG_HOME:-$HOME/.config}/relay/`:
 ~/.config/relay/
 ├── workstreams.json              # Central registry
 ├── ideas.json                    # Pre-workstream ideas (shown in /relay:list)
-├── session-markers/              # Links session IDs to workstreams (auto)
+├── session-markers/              # Links session IDs to workstreams (written by hooks; also stored in DB by MCP tools)
 │   └── <session-id>.json
-├── session-hints/                # Pre-written session summaries (auto, indexed into DB)
+├── session-hints/                # Pre-written session summaries (legacy file path; MCP tools write directly to DB)
 │   └── <timestamp>-<session-id>.json
 └── workstreams/
     ├── api-refactor/

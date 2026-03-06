@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.10.0] - 2026-03-05
+
+### Added
+- **`save_workstream` MCP tool** — Atomically saves state file (with backup), updates registry, writes session hint and marker to DB. Replaces 5 bash script calls with 1 MCP call.
+- **`create_workstream` MCP tool** — Creates new workstream: adds registry entry, writes initial state file.
+- **`park_workstream` MCP tool** — Saves state then sets workstream to parked.
+- **`switch_workstream` MCP tool** — Saves current workstream, activates target, writes session marker, returns target state. Replaces 7+ bash calls with 1.
+- **`list_workstreams` MCP tool** — Lists all workstreams grouped by status, plus ideas.
+- **`manage_idea` MCP tool** — Add, remove, or list ideas for future work.
+- **`workstreams` module** (`server/relay_server/workstreams.py`) — Shared infrastructure: registry reads/writes, atomic file operations, data directory resolution.
+- **`session_markers` SQLite table** — MCP tools write markers directly to DB. Reads check DB first, fall back to JSON files.
+
+### Changed
+- **All skills** (`save`, `new`, `park`, `switch`, `list`, `status`, `idea`) — Rewritten to use MCP tool calls instead of bash scripts. ~30 tool invocations per workflow cycle reduced to ~8.
+- **`_read_marker_workstream`** — Now checks DB `session_markers` table first, falls back to JSON file.
+- **Session hints** — MCP tools write hints directly to `session_hints` table (no intermediate JSON files).
+
 ## [0.9.2] - 2026-03-05
 
 ### Added
