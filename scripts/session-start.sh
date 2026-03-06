@@ -51,43 +51,55 @@ if [ ! -f "$REGISTRY" ]; then
   exit 0
 fi
 
-# Find active workstream
-ACTIVE_NAME=$(jq -r '[.workstreams | to_entries[] | select(.value.status == "active")] | first | .key // empty' "$REGISTRY" 2>/dev/null || true)
+# Find all active workstreams
+ACTIVE_NAMES=$(jq -r '[.workstreams | to_entries[] | select(.value.status == "active") | .key] | join(",")' "$REGISTRY" 2>/dev/null || true)
+ACTIVE_COUNT=$(echo "$ACTIVE_NAMES" | tr ',' '\n' | grep -c . 2>/dev/null || echo "0")
 
-# Validate workstream name format (lowercase alphanum + dashes)
-if [ -n "$ACTIVE_NAME" ] && ! [[ "$ACTIVE_NAME" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
-  ACTIVE_NAME=""
-fi
-
-if [ -z "$ACTIVE_NAME" ]; then
-  # List available workstreams
+if [ "$ACTIVE_COUNT" -eq 0 ]; then
+  # No active workstreams — list parked ones
   AVAILABLE=$(jq -r '[.workstreams | to_entries[] | select(.value.status == "parked") | .key] | join(", ")' "$REGISTRY" 2>/dev/null || true)
   if [ -n "$AVAILABLE" ]; then
     CONTEXT="relay: No active workstream. Parked workstreams: ${AVAILABLE}. Use /relay:switch to resume one, or /relay:new to create one."
   else
     CONTEXT="relay: No workstreams found. Use /relay:new to create one."
   fi
-else
-  STATE_FILE="$DATA_DIR/workstreams/$ACTIVE_NAME/state.md"
-  if [ -f "$STATE_FILE" ]; then
-    STATE_CONTENT=$(cat "$STATE_FILE")
-    CONTEXT=$(printf "relay: Active workstream '%s'\n---\n%s\n---" "$ACTIVE_NAME" "$STATE_CONTENT")
-  else
-    CONTEXT="relay: Active workstream '${ACTIVE_NAME}' (no state file found — use /relay:save to create one)"
+elif [ "$ACTIVE_COUNT" -eq 1 ]; then
+  # Single active — auto-attach (existing behavior)
+  ACTIVE_NAME="$ACTIVE_NAMES"
+  # Validate workstream name format
+  if ! [[ "$ACTIVE_NAME" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
+    ACTIVE_NAME=""
   fi
+  if [ -n "$ACTIVE_NAME" ] && [ -n "$SESSION_ID" ]; then
+    # Attach and get state + warning
+    ATTACH_OUTPUT=$(bash "${CLAUDE_PLUGIN_ROOT}/scripts/attach-workstream.sh" "$ACTIVE_NAME" "$SESSION_ID" 2>/dev/null || true)
+    if [ -n "$ATTACH_OUTPUT" ]; then
+      CONTEXT=$(printf "relay: Active workstream '%s'\n---\n%s\n---" "$ACTIVE_NAME" "$ATTACH_OUTPUT")
+    else
+      CONTEXT="relay: Active workstream '${ACTIVE_NAME}' (no state file found — use /relay:save to create one)"
+    fi
+  elif [ -n "$ACTIVE_NAME" ]; then
+    # No session ID available — just read state directly
+    STATE_FILE="$DATA_DIR/workstreams/$ACTIVE_NAME/state.md"
+    if [ -f "$STATE_FILE" ]; then
+      STATE_CONTENT=$(cat "$STATE_FILE")
+      CONTEXT=$(printf "relay: Active workstream '%s'\n---\n%s\n---" "$ACTIVE_NAME" "$STATE_CONTENT")
+    else
+      CONTEXT="relay: Active workstream '${ACTIVE_NAME}' (no state file found — use /relay:save to create one)"
+    fi
+  fi
+else
+  # Multiple active workstreams — list them and instruct Claude to ask
+  ACTIVE_LIST=$(echo "$ACTIVE_NAMES" | tr ',' '\n' | while read -r ws; do
+    DESC=$(jq -r --arg name "$ws" '.workstreams[$name].description // "(no description)"' "$REGISTRY" 2>/dev/null || true)
+    echo "  - **$ws**: $DESC"
+  done)
+  CONTEXT=$(printf "relay: Multiple active workstreams detected. Ask the user which one to work on for this session.\n\n%s\n\nOnce the user picks, attach to it:\n\`\`\`bash\nbash \"\${CLAUDE_PLUGIN_ROOT}/scripts/attach-workstream.sh\" \"<name>\" \"<session_id>\"\n\`\`\`\nUse the session ID shown below." "$ACTIVE_LIST")
 fi
 
 # Append session ID so skills can reference it for hint files
 if [ -n "$SESSION_ID" ]; then
   CONTEXT=$(printf "%s\nrelay-session-id: %s" "$CONTEXT" "$SESSION_ID")
-fi
-
-# Write session marker for indexer (links session_id to active workstream)
-if [ -n "$SESSION_ID" ] && [ -n "$ACTIVE_NAME" ]; then
-  MARKER_DIR="$DATA_DIR/session-markers"
-  mkdir -p "$MARKER_DIR"
-  jq -n --arg ws "$ACTIVE_NAME" --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-    '{workstream: $ws, timestamp: $ts}' > "$MARKER_DIR/${SESSION_ID}.json"
 fi
 
 # Output as JSON with additionalContext
