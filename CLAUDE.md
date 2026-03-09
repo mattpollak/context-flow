@@ -14,7 +14,7 @@ Semver rules:
 
 ## Releases
 
-After pushing a version bump, create a GitHub release:
+GitHub releases only for **minor** versions (0.12.0, 0.13.0, etc.), not patches. After pushing a minor version bump:
 ```bash
 gh release create v<version> --title "v<version>" --notes "<changelog notes>"
 ```
