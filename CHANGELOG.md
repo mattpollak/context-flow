@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.11.2] - 2026-03-09
+
+### Fixed
+- **`CLAUDE_PLUGIN_ROOT` not available in Claude's shell** — When multiple workstreams are active, `session-start.sh` now resolves `CLAUDE_PLUGIN_ROOT` at hook execution time and embeds the actual path in the context message, instead of leaving the variable for Claude's shell (where it's not set). Fixes `No such file or directory` error when attaching to a workstream.
+
 ## [0.11.1] - 2026-03-06
 
 ### Fixed

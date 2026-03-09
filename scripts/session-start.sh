@@ -94,7 +94,7 @@ else
     DESC=$(jq -r --arg name "$ws" '.workstreams[$name].description // "(no description)"' "$REGISTRY" 2>/dev/null || true)
     echo "  - **$ws**: $DESC"
   done)
-  CONTEXT=$(printf "relay: Multiple active workstreams detected. Ask the user which one to work on for this session.\n\n%s\n\nOnce the user picks, attach to it:\n\`\`\`bash\nbash \"\${CLAUDE_PLUGIN_ROOT}/scripts/attach-workstream.sh\" \"<name>\" \"<session_id>\"\n\`\`\`\nUse the session ID shown below." "$ACTIVE_LIST")
+  CONTEXT=$(printf "relay: Multiple active workstreams detected. Ask the user which one to work on for this session.\n\n%s\n\nOnce the user picks, attach to it:\n\`\`\`bash\nbash \"%s/scripts/attach-workstream.sh\" \"<name>\" \"<session_id>\"\n\`\`\`\nUse the session ID shown below." "$ACTIVE_LIST" "$CLAUDE_PLUGIN_ROOT")
 fi
 
 # Append session ID so skills can reference it for hint files
