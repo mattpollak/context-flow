@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.11.3] - 2026-03-09
+
+### Fixed
+- **Reindex foreign key failure** — `reindex` now stashes manual session tags before clearing tables and restores them after rebuilding. Previously, deleting sessions with `PRAGMA foreign_keys=ON` failed because manual `session_tags` entries still referenced them.
+
 ## [0.11.2] - 2026-03-09
 
 ### Fixed

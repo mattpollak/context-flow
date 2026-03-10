@@ -561,11 +561,14 @@ def reindex(db_path: Path | str, transcript_root: Path | str | None = None) -> d
     """Force a full re-index by clearing all data and rebuilding."""
     conn = get_connection(db_path)
     try:
-        # Clear all message tags (message IDs change on re-insert, so manual
-        # message tags become orphaned). Session tags preserve manual entries
-        # since session_id is a stable UUID.
+        # Stash manual session tags — session_id is a stable UUID so they
+        # survive reindex, but we must remove them before deleting sessions
+        # to satisfy the foreign key constraint.
+        manual_session_tags = conn.execute(
+            "SELECT session_id, tag, source FROM session_tags WHERE source != 'auto'"
+        ).fetchall()
         conn.execute("DELETE FROM message_tags")
-        conn.execute("DELETE FROM session_tags WHERE source = 'auto'")
+        conn.execute("DELETE FROM session_tags")
         conn.execute("DELETE FROM session_hints")
         conn.execute("DELETE FROM messages")
         conn.execute("DELETE FROM sessions")
@@ -578,11 +581,24 @@ def reindex(db_path: Path | str, transcript_root: Path | str | None = None) -> d
 
     stats = index_all(db_path, transcript_root)
 
-    # Apply all session markers after full reindex
+    # Apply all session markers and restore manual tags after full reindex
     conn = get_connection(db_path)
     try:
         _apply_all_session_markers(conn)
         _index_all_session_hints(conn)
+        # Restore manual session tags — skip any whose session_id no longer
+        # exists (e.g. transcript file was deleted)
+        for session_id, tag, source in manual_session_tags:
+            exists = conn.execute(
+                "SELECT 1 FROM sessions WHERE session_id = ?",
+                (session_id,),
+            ).fetchone()
+            if exists:
+                conn.execute(
+                    "INSERT OR IGNORE INTO session_tags (session_id, tag, source) "
+                    "VALUES (?, ?, ?)",
+                    (session_id, tag, source),
+                )
         conn.commit()
     finally:
         conn.close()
