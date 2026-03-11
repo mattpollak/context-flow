@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.11.4] - 2026-03-11
+
+### Changed
+- **Save and park skills** — No longer call `list_workstreams` to find the active workstream. The name is already in the session context, saving a round trip. Fixes unnecessary MCP call that was especially wasteful near context compaction.
+
 ## [0.11.3] - 2026-03-09
 
 ### Fixed

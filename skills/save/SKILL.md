@@ -11,7 +11,7 @@ Save the current session's context to the active workstream's state file.
 
 ## Steps
 
-1. **Find active workstream.** Call `list_workstreams` to find which workstream is active. If none is active, tell the user and suggest `/relay:new` or `/relay:switch`.
+1. **Find active workstream.** Read the workstream name from the session context (injected by session-start or switch). Do NOT call `list_workstreams` — the name is already in context. If no workstream is attached, tell the user and suggest `/relay:new` or `/relay:switch`.
 
 2. **Save.** Call `save_workstream` with the state content and session hint:
    ```

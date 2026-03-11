@@ -12,7 +12,7 @@ Park the active workstream (or the one named `$ARGUMENTS`), saving its state fir
 
 ## Steps
 
-1. **Determine target.** If `$ARGUMENTS` is provided, park that workstream. Otherwise, call `list_workstreams` to find the active workstream. If none active and no name given, tell the user and stop.
+1. **Determine target.** If `$ARGUMENTS` is provided, park that workstream. Otherwise, read the workstream name from the session context (injected by session-start or switch). Do NOT call `list_workstreams` — the name is already in context. If no workstream is attached and no name given, tell the user and stop.
 
 2. **Park.** Call `park_workstream`:
    ```
