@@ -95,15 +95,36 @@ def test_switch_nonexistent_target():
             conn.close()
 
 
-def test_list_workstreams():
+def test_list_workstreams_markdown():
     with tempfile.TemporaryDirectory() as tmpdir:
         _, data_dir, conn = _setup(tmpdir)
-        # Write ideas file
         ideas = [{"id": 1, "text": "try websockets", "added": "2026-03-01"}]
         (data_dir / "ideas.json").write_text(json.dumps(ideas))
         try:
             from relay_server.workstreams import list_workstreams
             result = list_workstreams(data_dir=data_dir)
+            assert isinstance(result, str)
+            assert "## Active" in result
+            assert "## Parked" in result
+            assert "| alpha |" in result
+            assert "| beta |" in result
+            assert "## Ideas" in result
+            assert "try websockets" in result
+            assert "/relay:idea promote" in result
+            assert "**Commands:**" in result
+        finally:
+            conn.close()
+
+
+def test_list_workstreams_json():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        _, data_dir, conn = _setup(tmpdir)
+        ideas = [{"id": 1, "text": "try websockets", "added": "2026-03-01"}]
+        (data_dir / "ideas.json").write_text(json.dumps(ideas))
+        try:
+            from relay_server.workstreams import list_workstreams
+            result = list_workstreams(data_dir=data_dir, format="json")
+            assert isinstance(result, dict)
             assert "alpha" in [w["name"] for w in result["active"]]
             assert "beta" in [w["name"] for w in result["parked"]]
             assert len(result["ideas"]) == 1
@@ -117,8 +138,15 @@ def test_list_workstreams_empty():
         data_dir.mkdir()
         (data_dir / "workstreams.json").write_text('{"version": 1, "workstreams": {}}')
         from relay_server.workstreams import list_workstreams
+        # Markdown: should still have commands line
         result = list_workstreams(data_dir=data_dir)
-        assert result["active"] == []
-        assert result["parked"] == []
-        assert result["completed"] == []
-        assert result["ideas"] == []
+        assert isinstance(result, str)
+        assert "**Commands:**" in result
+        assert "## Active" not in result
+
+        # JSON: empty arrays
+        result_json = list_workstreams(data_dir=data_dir, format="json")
+        assert result_json["active"] == []
+        assert result_json["parked"] == []
+        assert result_json["completed"] == []
+        assert result_json["ideas"] == []

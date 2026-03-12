@@ -27,6 +27,6 @@ Generate a summary of recent Claude Code sessions grouped by workstream.
    ```
    summarize_activity(date_from=DATE_FROM)
    ```
-   This writes the full markdown summary to a file and returns `{file, overview, date_range}`.
+   Returns pre-formatted markdown: full inline for short summaries, or an overview with file path for long ones.
 
-3. **Tell the user.** Print the file path and the overview list. The overview contains workstream names with session counts — display these as a short list so the user knows what's in the file.
+3. **Display.** Output the result directly — it includes the file path and either the full summary or an overview depending on length. Do not reformat or restructure it.

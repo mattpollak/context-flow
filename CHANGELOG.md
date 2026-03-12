@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.5] - 2026-03-12
+
+### Changed
+- **Server-side markdown formatting** — `list_workstreams` and `summarize_activity` MCP tools now return pre-formatted markdown by default, eliminating LLM token spend on JSON→markdown conversion. Pass `format="json"` for structured data.
+- **`summarize_activity` inline display** — Short summaries (≤200 lines) are returned inline; longer summaries return an overview with file path. File is always written regardless of length.
+- **Simplified list and summarize skills** — Skills now display server output directly instead of containing rendering instructions.
+
 ## [0.11.4] - 2026-03-11
 
 ### Changed

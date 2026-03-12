@@ -394,8 +394,13 @@ def manage_idea(
     return {"status": "error", "message": f"Unknown action: {action}"}
 
 
-def list_workstreams(*, data_dir: Path) -> dict:
-    """List all workstreams grouped by status, plus ideas."""
+def list_workstreams(*, data_dir: Path, format: str = "markdown") -> dict | str:
+    """List all workstreams grouped by status, plus ideas.
+
+    Args:
+        format: "markdown" (default) returns pre-formatted markdown string.
+                "json" returns structured dict with active/parked/completed/ideas.
+    """
     registry = read_registry(data_dir)
 
     groups: dict[str, list] = {"active": [], "parked": [], "completed": []}
@@ -418,4 +423,35 @@ def list_workstreams(*, data_dir: Path) -> dict:
         except (json.JSONDecodeError, OSError):
             pass
 
-    return {**groups, "ideas": ideas}
+    if format == "json":
+        return {**groups, "ideas": ideas}
+
+    # Build pre-formatted markdown
+    lines = []
+    for status in ("active", "parked", "completed"):
+        items = groups[status]
+        if not items:
+            continue
+        lines.append(f"## {status.title()}")
+        lines.append("| Workstream | Description | Last Touched |")
+        lines.append("|---|---|---|")
+        for ws in items:
+            lines.append(f"| {ws['name']} | {ws['description']} | {ws['last_touched']} |")
+        lines.append("")
+
+    if ideas:
+        lines.append("## Ideas")
+        for idea in ideas:
+            text = idea.get("text", "")
+            added = idea.get("added", "")
+            lines.append(f"{idea.get('id', '')}. {text} *({added})*")
+        lines.append("")
+        lines.append("`/relay:idea promote <id>` to start working on one.")
+        lines.append("")
+
+    lines.append(
+        "**Commands:** `/relay:status` · `/relay:new` · `/relay:switch <name>` "
+        "· `/relay:save` · `/relay:park` · `/relay:idea`"
+    )
+
+    return "\n".join(lines)

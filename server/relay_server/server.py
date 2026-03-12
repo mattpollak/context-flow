@@ -1046,6 +1046,9 @@ def _summarize_activity_impl(
     return "\n".join(lines)
 
 
+_SUMMARY_INLINE_THRESHOLD = 200  # lines; summaries longer than this get overview only
+
+
 @mcp.tool()
 def summarize_activity(
     date_from: str,
@@ -1053,11 +1056,13 @@ def summarize_activity(
     date_to: str | None = None,
     workstream: str | None = None,
     output_dir: str | None = None,
-) -> dict:
+    format: str = "markdown",
+) -> dict | str:
     """Summarize recent activity grouped by workstream.
 
-    Writes full markdown summary to a file and returns the file path
-    with a brief overview (workstream names and session counts).
+    Always writes full markdown summary to a file. Returns pre-formatted
+    markdown by default (full inline if short, overview + file path if long).
+    Pass format="json" for structured data.
 
     Output directory precedence: output_dir param > config file > default.
 
@@ -1066,6 +1071,7 @@ def summarize_activity(
         date_to: End date (ISO format). Defaults to now.
         workstream: Filter to a single workstream name
         output_dir: Directory to write summary file (overrides config)
+        format: "markdown" (default) or "json" for structured data
     """
     db_path = _get_db_path(ctx)
     conn = get_connection(db_path)
@@ -1094,11 +1100,27 @@ def summarize_activity(
         if line.startswith("### "):
             overview.append(line.removeprefix("### "))
 
-    return {
-        "file": str(out_path),
-        "overview": overview,
-        "date_range": f"{date_from} – {date_to or 'now'}",
-    }
+    if format == "json":
+        return {
+            "file": str(out_path),
+            "overview": overview,
+            "date_range": f"{date_from} – {date_to or 'now'}",
+        }
+
+    # Markdown format: full inline if short, overview + file path if long
+    line_count = markdown.count("\n") + 1
+    file_note = f"*Full summary saved to `{out_path}`*"
+
+    if line_count <= _SUMMARY_INLINE_THRESHOLD:
+        return f"{file_note}\n\n{markdown}"
+
+    # Long summary: overview only
+    lines = [file_note, ""]
+    lines.append(f"## Activity Summary: {date_from} – {date_to or 'now'}")
+    lines.append(f"*{line_count} lines — open the file for full details.*\n")
+    for item in overview:
+        lines.append(f"- {item}")
+    return "\n".join(lines)
 
 
 @mcp.tool()
@@ -1256,15 +1278,17 @@ def switch_workstream(
 
 
 @mcp.tool()
-def list_workstreams(ctx: Context[ServerSession, AppContext]) -> dict:
+def list_workstreams(
+    ctx: Context[ServerSession, AppContext],
+    format: str = "markdown",
+) -> dict | str:
     """List all workstreams grouped by status (active, parked, completed) plus ideas.
 
-    Returns structured data with workstream names, descriptions, last_touched dates,
-    and any captured ideas.
+    Returns pre-formatted markdown by default. Pass format="json" for structured data.
     """
     from .workstreams import get_data_dir
     from .workstreams import list_workstreams as _list
-    return _list(data_dir=get_data_dir())
+    return _list(data_dir=get_data_dir(), format=format)
 
 
 @mcp.tool()
