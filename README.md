@@ -96,7 +96,7 @@ relay bridges the gap between the ephemeral context window and persistent workst
 - **Auto-loaded workstream** — every session starts with your workstream state already in the context window
 - **One-command switching** — save current workstream, load another, keep both active
 - **Multi-instance support** — run parallel Claude instances on different workstreams without conflicts
-- **Compaction protection** — warnings as the context window fills up, with a prompt to save before compression
+- **Compaction protection** — automatic prompt to save workstream state before context compression
 - **Full conversation search** — every transcript indexed into searchable SQLite FTS5 across all projects
 - **Auto-tagging** — messages classified by type (UX reviews, architecture decisions, plans, debugging) for easy filtering
 - **Activity summaries** — `/relay:summarize 7d` for standup prep, brag books, or catching up after time away
@@ -137,7 +137,7 @@ Start a new Claude Code session — you should see the SessionStart hook fire. I
 
 ### Permissions
 
-Core workstream operations (save, create, park, switch, list, ideas) are handled by MCP tools — **no bash permission prompts needed**. Hooks (session start, context monitor, pre-compact) still run as bash scripts and are automatically approved by a bundled `PreToolUse` hook (`scripts/approve-scripts.sh`).
+All workstream operations (save, create, park, switch, list, ideas, backfill) are handled by MCP tools — **no bash permission prompts needed**. Hooks (session start, pre-compact, session end) run as bash scripts and are automatically approved by Claude Code's plugin hook system.
 
 ### Updating
 
@@ -213,6 +213,7 @@ The MCP server provides tools that Claude uses directly during your session — 
 | `tag_session` | Manually tag a session (e.g., associate with a workstream) |
 | `list_tags` | List all tags with counts — see what's been auto-detected |
 | `get_session_summaries` | Get pre-written session summaries (hint segments with bullets and decisions) |
+| `write_session_hint` | Write a session hint (summary + decisions) directly to the database. Used by backfill. |
 | `reindex` | Force a complete re-index from scratch |
 | `fix_other_hints` | Re-attribute session hints tagged as "other" to the correct workstream using project_dir inference. Idempotent. |
 
@@ -249,9 +250,9 @@ Configuration lives at `${XDG_CONFIG_HOME:-$HOME/.config}/relay/`:
 ├── relay.json                    # Server-level config (optional — see below)
 ├── workstreams.json              # Central registry
 ├── ideas.json                    # Pre-workstream ideas (shown in /relay:list)
-├── session-markers/              # Links session IDs to workstreams (written by hooks; also stored in DB by MCP tools)
+├── session-markers/              # Links session IDs to workstreams (written by session-start hook and MCP tools)
 │   └── <session-id>.json
-├── session-hints/                # Pre-written session summaries (legacy file path; MCP tools write directly to DB)
+├── session-hints/                # Legacy session summaries (new hints written directly to DB by MCP tools)
 │   └── <timestamp>-<session-id>.json
 └── workstreams/
     ├── api-refactor/
@@ -289,10 +290,8 @@ The file is optional — relay works fine without it. Missing or malformed files
 | Hook | Event | What it does |
 |---|---|---|
 | `session-start.sh` | SessionStart | Reads registry, injects workstream state into the context window. Auto-attaches if one active workstream; prompts for choice if multiple are active. Writes session marker. |
-| `context-monitor.sh` | PostToolUse | Counts tool calls, warns at 80 and 100 that the context window is filling up |
 | `pre-compact-save.sh` | PreCompact | Prompts Claude to save workstream state before context compression |
-| `session-end.sh` | SessionEnd | Cleans up temp files, updates `last_touched` timestamp |
-| `approve-scripts.sh` | PreToolUse | Auto-approves Bash commands targeting plugin scripts (no user prompt) |
+| `session-end.sh` | SessionEnd | Cleans up session mapping, updates `last_touched` timestamp |
 
 ### State files
 

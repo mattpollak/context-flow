@@ -21,9 +21,8 @@ if [ -n "$SESSION_ID" ] && ! [[ "$SESSION_ID" =~ ^[a-f0-9-]+$ ]]; then
   SESSION_ID=""
 fi
 
-# Clean up counter file and session-workstream mapping
+# Clean up session-workstream mapping
 if [ -n "$SESSION_ID" ]; then
-  rm -f "${COUNTER_PREFIX}-${SESSION_ID}.count"
   rm -f "$DATA_DIR/session-workstreams/${SESSION_ID}"
 fi
 

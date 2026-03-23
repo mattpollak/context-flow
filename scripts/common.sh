@@ -4,4 +4,3 @@
 
 APP_NAME="relay"
 DATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/$APP_NAME"
-COUNTER_PREFIX="${TMPDIR:-/tmp}/$APP_NAME"

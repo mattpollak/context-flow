@@ -532,6 +532,40 @@ def update_workstream(
     return {"status": "updated", "workstream": name, "fields": updated}
 
 
+def write_session_hint(
+    *,
+    conn: sqlite3.Connection,
+    session_id: str,
+    workstream: str,
+    summary: list[str],
+    decisions: list[str] | None = None,
+) -> dict:
+    """Write a session hint directly to the database.
+
+    Used by backfill to write hints for older sessions without needing
+    to go through save_workstream (which also writes state files).
+    """
+    from .db import ensure_session
+    ensure_session(conn, session_id)
+
+    ts = utc_timestamp()
+    conn.execute(
+        """INSERT OR REPLACE INTO session_hints
+           (session_id, timestamp, source_file, workstream, summary, decisions)
+           VALUES (?, ?, ?, ?, ?, ?)""",
+        (
+            session_id,
+            ts,
+            f"mcp-{ts}-{session_id[:8]}",
+            workstream,
+            json.dumps(summary),
+            json.dumps(decisions) if decisions else None,
+        ),
+    )
+    conn.commit()
+    return {"status": "written", "session_id": session_id, "workstream": workstream}
+
+
 def manage_idea(
     *,
     data_dir: Path,

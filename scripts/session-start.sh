@@ -70,16 +70,19 @@ elif [ "$ACTIVE_COUNT" -eq 1 ]; then
   if ! [[ "$ACTIVE_NAME" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
     ACTIVE_NAME=""
   fi
-  if [ -n "$ACTIVE_NAME" ] && [ -n "$SESSION_ID" ]; then
-    # Attach and get state + warning
-    ATTACH_OUTPUT=$(bash "${CLAUDE_PLUGIN_ROOT}/scripts/attach-workstream.sh" "$ACTIVE_NAME" "$SESSION_ID" 2>/dev/null || true)
-    if [ -n "$ATTACH_OUTPUT" ]; then
-      CONTEXT=$(printf "relay: Active workstream '%s'\n---\n%s\n---" "$ACTIVE_NAME" "$ATTACH_OUTPUT")
-    else
-      CONTEXT="relay: Active workstream '${ACTIVE_NAME}' (no state file found — use /relay:save to create one)"
+  if [ -n "$ACTIVE_NAME" ]; then
+    # Write session marker + mapping for statusline
+    if [ -n "$SESSION_ID" ]; then
+      MARKER_DIR="$DATA_DIR/session-markers"
+      mkdir -p "$MARKER_DIR"
+      jq -n --arg ws "$ACTIVE_NAME" --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        '{workstream: $ws, timestamp: $ts}' > "$MARKER_DIR/${SESSION_ID}.json"
+      SW_DIR="$DATA_DIR/session-workstreams"
+      mkdir -p "$SW_DIR"
+      printf '%s' "$ACTIVE_NAME" > "$SW_DIR/${SESSION_ID}"
     fi
-  elif [ -n "$ACTIVE_NAME" ]; then
-    # No session ID available — just read state directly
+
+    # Read and output state
     STATE_FILE="$DATA_DIR/workstreams/$ACTIVE_NAME/state.md"
     if [ -f "$STATE_FILE" ]; then
       STATE_CONTENT=$(cat "$STATE_FILE")
@@ -94,7 +97,7 @@ else
     DESC=$(jq -r --arg name "$ws" '.workstreams[$name].description // "(no description)"' "$REGISTRY" 2>/dev/null || true)
     echo "  - **$ws**: $DESC"
   done)
-  CONTEXT=$(printf "relay: Multiple active workstreams detected. Ask the user which one to work on for this session.\n\n%s\n\nOnce the user picks, attach to it:\n\`\`\`bash\nbash \"%s/scripts/attach-workstream.sh\" \"<name>\" \"<session_id>\"\n\`\`\`\nUse the session ID shown below." "$ACTIVE_LIST" "$CLAUDE_PLUGIN_ROOT")
+  CONTEXT=$(printf "relay: Multiple active workstreams detected. Ask the user which one to work on for this session.\n\n%s\n\nOnce the user picks, call switch_workstream(to_name=\"<name>\", session_id=\"<session_id>\") to attach to it.\nUse the session ID shown below." "$ACTIVE_LIST")
 fi
 
 # Append session ID so skills can reference it for hint files

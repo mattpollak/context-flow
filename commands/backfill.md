@@ -5,7 +5,7 @@ argument-hint: "<time-range: 7d, 30d, all>"
 
 # Backfill Session Hints
 
-Generate session hint files for sessions that don't have them yet. This reads conversation content and writes structured summaries — a one-time cost that makes future `/relay:summarize` calls nearly free.
+Generate session hints for sessions that don't have them yet. This reads conversation content and writes structured summaries — a one-time cost that makes future `/relay:summarize` calls nearly free.
 
 **Argument:** `$ARGUMENTS` is a time range. If empty, default to 7d.
 
@@ -29,42 +29,26 @@ Generate session hint files for sessions that don't have them yet. This reads co
 
 4. **For each session without hints:**
 
-   a. **Read the session marker** to find the workstream:
-      ```bash
-      bash "${CLAUDE_PLUGIN_ROOT}/scripts/read-data-file.sh" "session-markers/<session_id>.json"
-      ```
-      If no marker, use "other" as the workstream.
+   a. **Determine the workstream.** Use the session's `project_dir` or tags to infer which workstream. If unclear, use "other".
 
    b. **Read the conversation:**
       ```
       get_conversation(session_id, roles=["user", "assistant"], limit=50, format="markdown")
       ```
 
-   c. **Write the hint file.** Based on the conversation content, write a hint:
-      ```bash
-      bash "${CLAUDE_PLUGIN_ROOT}/scripts/write-data-file.sh" "session-hints/<timestamp>-<session_id>.json" << 'EOF'
-      {
-        "session_id": "<full-uuid-from-list_sessions>",
-        "workstream": "<workstream from marker>",
-        "summary": [
-          "<3-6 bullets describing what was accomplished>",
-          "<focus on capabilities, features, decisions — not counts>"
-        ],
-        "decisions": [
-          "<key decisions, if any>"
-        ]
-      }
-      EOF
+   c. **Write the hint.** Based on the conversation content, call:
       ```
-
-      **IMPORTANT formatting rules:**
-      - `session_id` MUST be the **full UUID** from `list_sessions` (e.g., `23ae9e8c-b621-420b-b3a7-fe507d5cdd84`), never truncated
-      - `<timestamp>` in the filename must be ISO format: `YYYY-MM-DDTHHmmSSZ` (e.g., `2026-02-16T191132Z`). Convert the session's `last_timestamp` by stripping colons from the time portion and replacing the timezone with `Z`.
-      - Example filename: `2026-02-16T191132Z-23ae9e8c-b621-420b-b3a7-fe507d5cdd84.json`
+      write_session_hint(
+        session_id="<full-uuid-from-list_sessions>",
+        workstream="<workstream>",
+        summary=["<3-6 bullets describing what was accomplished>"],
+        decisions=["<key decisions, if any>"]
+      )
+      ```
 
    d. **Report progress:** "Wrote hint for session `<slug>` (<date>)"
 
-   e. If the session clearly spans multiple workstreams (e.g., user switched workstreams mid-session), write separate hint files for each segment — use different timestamps in the filenames.
+   e. If the session clearly spans multiple workstreams, write separate hints for each segment.
 
 5. **Summary.** Report: "Backfill complete. Generated hints for N sessions."
 

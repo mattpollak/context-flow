@@ -1419,3 +1419,31 @@ def fix_other_hints(ctx: Context[ServerSession, AppContext]) -> dict:
         return _fix_other_hints_impl(conn)
     finally:
         conn.close()
+
+
+@mcp.tool()
+def write_session_hint(
+    session_id: str,
+    workstream: str,
+    summary: list[str],
+    ctx: Context[ServerSession, AppContext],
+    decisions: list[str] | None = None,
+) -> dict:
+    """Write a session hint (summary + decisions) directly to the database.
+
+    Used by backfill to write hints for older sessions. For current sessions,
+    use save_workstream instead (which also writes state files).
+
+    Args:
+        session_id: Full session UUID
+        workstream: Workstream name to associate the hint with
+        summary: 3-6 bullets describing what was accomplished
+        decisions: Key decisions made (omit if none)
+    """
+    from .workstreams import write_session_hint as _write
+    db_path = _get_db_path(ctx)
+    conn = get_connection(db_path)
+    try:
+        return _write(conn=conn, session_id=session_id, workstream=workstream, summary=summary, decisions=decisions)
+    finally:
+        conn.close()

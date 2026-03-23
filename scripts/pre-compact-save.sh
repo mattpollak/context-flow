@@ -5,18 +5,16 @@ set -euo pipefail
 trap 'exit 0' ERR
 source "$(dirname "$0")/common.sh"
 
-# Read stdin for session_id
 INPUT=$(cat)
 
-# Check jq is available
 if ! command -v jq &>/dev/null; then
-  echo "IMPORTANT: Context compaction is about to occur. If you are tracking work in a workstream, save your state now."
+  echo "IMPORTANT: Context compaction imminent. Save your workstream state now with /relay:save."
   exit 0
 fi
 
 SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // empty' 2>/dev/null || true)
 
-# Find workstream from session marker (not active status — multiple may be active)
+# Find workstream from session marker
 ACTIVE_NAME=""
 if [ -n "$SESSION_ID" ]; then
   MARKER_FILE="$DATA_DIR/session-markers/${SESSION_ID}.json"
@@ -25,34 +23,10 @@ if [ -n "$SESSION_ID" ]; then
   fi
 fi
 
-# Validate workstream name format (lowercase alphanum + dashes)
-if [ -z "$ACTIVE_NAME" ] || ! [[ "$ACTIVE_NAME" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
-  echo "IMPORTANT: Context compaction is about to occur. If you are tracking work in a workstream, save your state now with /relay:save."
-  exit 0
+if [ -n "$ACTIVE_NAME" ] && [[ "$ACTIVE_NAME" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
+  echo "IMPORTANT: Context compaction imminent. Save workstream '${ACTIVE_NAME}' now — call save_workstream or use /relay:save."
+else
+  echo "IMPORTANT: Context compaction imminent. Save your workstream state now with /relay:save."
 fi
-
-STATE_FILE="$DATA_DIR/workstreams/$ACTIVE_NAME/state.md"
-
-cat <<EOF
-IMPORTANT: Context compaction is imminent. You MUST save the active workstream '${ACTIVE_NAME}' state NOW.
-
-Call the save_workstream MCP tool:
-
-save_workstream(
-  name="${ACTIVE_NAME}",
-  state_content="<state markdown, under 80 lines>",
-  session_id="<from relay-session-id in your session context>",
-  hint_summary=["<3-6 bullets: what was accomplished>"],
-  hint_decisions=["<key decisions, if any — omit if none>"]
-)
-
-The state content must include:
-- Current status (what was being worked on)
-- Key decisions made
-- Next steps
-- Any blockers or important context that would be lost
-
-This single call handles: atomic state file write + backup, registry update, session hint to DB, and session marker.
-EOF
 
 exit 0
