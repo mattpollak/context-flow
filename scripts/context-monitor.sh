@@ -36,15 +36,15 @@ fi
 echo "$COUNT" > "$COUNTER_FILE"
 
 # Graduated warnings
-if [ "$COUNT" -ge 100 ] && [ $((COUNT % 3)) -eq 0 ]; then
-  # Critical: every 3rd call after 100
+if [ "$COUNT" -ge 100 ] && [ $((COUNT % 10)) -eq 0 ]; then
+  # Critical: every 10th call after 100
   jq -n '{
     "systemMessage": "CRITICAL: ~100+ tool calls this session. Context compaction is likely imminent. Save your workstream state NOW with /relay:save before context is compressed and you lose session details."
   }'
-elif [ "$COUNT" -ge 80 ] && [ $((COUNT % 5)) -eq 0 ]; then
-  # Warning: every 5th call after 80
+elif [ "$COUNT" -eq 80 ]; then
+  # Warning: once at exactly 80
   jq -n '{
-    "systemMessage": "WARNING: ~80+ tool calls this session. Context window is filling up. Consider saving workstream state with /relay:save soon."
+    "systemMessage": "WARNING: ~80 tool calls this session. Context window is filling up. Consider saving workstream state with /relay:save soon."
   }'
 fi
 
