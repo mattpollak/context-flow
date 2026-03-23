@@ -206,7 +206,12 @@ def save_workstream(
             json.dumps(registry, indent=2) + "\n",
         )
 
-    # Step 5: Write hint to DB
+    # Step 5: Ensure session row exists (so FK constraints are satisfied)
+    if session_id:
+        from relay_server.db import ensure_session
+        ensure_session(conn, session_id)
+
+    # Step 6: Write hint to DB
     if session_id and hint_summary:
         ts = utc_timestamp()
         conn.execute(
@@ -223,7 +228,7 @@ def save_workstream(
             ),
         )
 
-    # Step 6: Write/update session marker in DB
+    # Step 7: Write/update session marker in DB
     if session_id:
         conn.execute(
             """INSERT OR REPLACE INTO session_markers

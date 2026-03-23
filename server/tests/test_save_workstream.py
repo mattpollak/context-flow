@@ -155,6 +155,41 @@ def test_save_without_session_id_skips_hint():
             conn.close()
 
 
+def test_save_with_unknown_session_id():
+    """save_workstream should auto-create a session placeholder for FK satisfaction."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path, data_dir, conn = _setup(tmpdir)
+        try:
+            from relay_server.workstreams import save_workstream
+            unknown_sid = "deadbeef-0000-0000-0000-000000000000"
+            result = save_workstream(
+                data_dir=data_dir,
+                conn=conn,
+                name="test-ws",
+                state_content="# State",
+                session_id=unknown_sid,
+                hint_summary=["First hint for new session"],
+            )
+            assert result["status"] == "saved"
+            assert result["hint_written"] is True
+
+            # Session placeholder was created
+            session = conn.execute(
+                "SELECT * FROM sessions WHERE session_id = ?", (unknown_sid,)
+            ).fetchone()
+            assert session is not None
+            assert session["message_count"] == 0
+
+            # Hint was written
+            hint = conn.execute(
+                "SELECT * FROM session_hints WHERE session_id = ?", (unknown_sid,)
+            ).fetchone()
+            assert hint is not None
+            assert "First hint" in hint["summary"]
+        finally:
+            conn.close()
+
+
 def test_save_no_existing_state_no_backup():
     with tempfile.TemporaryDirectory() as tmpdir:
         db_path, data_dir, conn = _setup(tmpdir)

@@ -132,6 +132,19 @@ def ensure_schema(db_path: Path | str) -> None:
         conn.close()
 
 
+def ensure_session(conn: sqlite3.Connection, session_id: str) -> None:
+    """Ensure a session row exists so FK constraints are satisfied.
+
+    Inserts a minimal placeholder if the session hasn't been indexed yet.
+    The full indexer will update it with complete metadata later.
+    """
+    conn.execute(
+        """INSERT OR IGNORE INTO sessions (session_id, message_count)
+           VALUES (?, 0)""",
+        (session_id,),
+    )
+
+
 def decode_project_dir(dirname: str) -> str:
     """Decode a Claude Code project directory name to a filesystem path.
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.12.1] - 2026-03-22
+
+### Fixed
+- **Foreign key constraint on save/park/switch** — `save_workstream` now auto-creates a placeholder session row when the current session hasn't been indexed yet, preventing `FOREIGN KEY constraint failed` errors on `session_hints` inserts.
+
 ## [0.12.0] - 2026-03-12
 
 ### Added
