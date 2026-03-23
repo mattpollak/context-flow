@@ -1,7 +1,7 @@
 ---
 name: save
 description: >
-  Save the current workstream's state to disk.
+  Saves the current workstream's state to disk.
   Trigger phrases: "save context", "save state", "save session", "persist context", "update context".
 ---
 

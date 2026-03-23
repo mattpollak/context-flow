@@ -1,7 +1,7 @@
 ---
 name: park
 description: >
-  Park the current workstream (save state and deactivate).
+  Parks the current workstream (save state and deactivate).
   Trigger phrases: "park this", "park workstream", "pause workstream", "shelve this".
 argument-hint: "[workstream-name]"
 ---

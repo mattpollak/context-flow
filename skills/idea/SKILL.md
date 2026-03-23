@@ -1,7 +1,7 @@
 ---
 name: idea
 description: >
-  Capture an idea for future work, or promote one to a workstream. Displayed by /relay:list.
+  Captures an idea for future work, or promotes one to a workstream. Displayed by /relay:list.
   Trigger phrases: "add idea", "jot down", "remember this idea", "idea promote".
 argument-hint: "<idea text> | promote <id>"
 ---

@@ -198,6 +198,7 @@ The MCP server provides tools that Claude uses directly during your session — 
 | `switch_workstream` | Save current workstream, activate target, write session marker, return target state. Returns git warnings and stash reminders. |
 | `list_workstreams` | List all workstreams grouped by status (active, parked, completed) plus ideas. Shows branch/worktree info inline. Returns pre-formatted markdown by default; pass `format="json"` for structured data |
 | `manage_worktree` | Attach, detach, remove, or list relay-managed git worktrees |
+| `update_workstream` | Update workstream fields (description, project_dir, color, git strategy). Only provided fields are changed. |
 | `manage_idea` | Add, remove, or list ideas for future work |
 | `summarize_activity` | Summarize recent activity grouped by workstream. Always writes markdown to file; returns full markdown inline (≤200 lines) or overview + file path (longer). Pass `format="json"` for structured data |
 
@@ -213,6 +214,7 @@ The MCP server provides tools that Claude uses directly during your session — 
 | `list_tags` | List all tags with counts — see what's been auto-detected |
 | `get_session_summaries` | Get pre-written session summaries (hint segments with bullets and decisions) |
 | `reindex` | Force a complete re-index from scratch |
+| `fix_other_hints` | Re-attribute session hints tagged as "other" to the correct workstream using project_dir inference. Idempotent. |
 
 **Session-level addressing:** When a conversation spans multiple sessions (via "continue"), you can address specific sessions:
 - `list_sessions(slug="my-conversation")` — returns a session index with `session_number` for each session
