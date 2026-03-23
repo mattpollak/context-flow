@@ -1,10 +1,12 @@
 """Tests for switch_workstream and list_workstreams."""
 
 import json
+import subprocess
 import tempfile
 from pathlib import Path
 
 from relay_server.db import ensure_schema, get_connection
+from relay_server.workstreams import atomic_write
 
 
 def _setup(tmpdir):
@@ -32,6 +34,30 @@ def _setup(tmpdir):
            VALUES ('aabbccdd-1122-3344-5566-778899aabbcc', '/test', '2026-01-01T00:00:00Z', '2026-01-01T01:00:00Z', 10)"""
     )
     conn.commit()
+    return db_path, data_dir, conn
+
+
+def _setup_git(tmpdir):
+    """Setup with 'source' and 'target' workstreams for git-aware switch tests."""
+    db_path = Path(tmpdir) / "test.db"
+    data_dir = Path(tmpdir) / "data"
+    data_dir.mkdir()
+    ensure_schema(db_path)
+
+    registry = {
+        "version": 1,
+        "workstreams": {
+            "source": {"status": "active", "description": "Source", "created": "2026-01-01", "last_touched": "2026-01-01", "project_dir": ""},
+            "target": {"status": "parked", "description": "Target", "created": "2026-01-01", "last_touched": "2026-01-01", "project_dir": ""},
+        }
+    }
+    (data_dir / "workstreams.json").write_text(json.dumps(registry))
+    for ws in ("source", "target"):
+        d = data_dir / "workstreams" / ws
+        d.mkdir(parents=True)
+        (d / "state.md").write_text(f"# {ws.title()} State")
+
+    conn = get_connection(db_path)
     return db_path, data_dir, conn
 
 
@@ -220,5 +246,132 @@ def test_get_status_excludes_attached_from_other():
             # alpha should NOT appear in the "Other active" line
             other_active_line = [l for l in result.split("\n") if "**Other active:**" in l][0]
             assert "alpha" not in other_active_line
+        finally:
+            conn.close()
+
+
+def test_switch_branch_mismatch_warning():
+    """switch_workstream warns when current branch doesn't match target's git.branch."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path, data_dir, conn = _setup_git(tmpdir)
+        from relay_server.workstreams import switch_workstream, read_registry
+        registry = read_registry(data_dir)
+        repo = Path(tmpdir) / "repo"
+        repo.mkdir()
+        subprocess.run(["git", "init", str(repo)], capture_output=True)
+        subprocess.run(["git", "-C", str(repo), "config", "user.email", "t@t.com"], capture_output=True)
+        subprocess.run(["git", "-C", str(repo), "config", "user.name", "T"], capture_output=True)
+        (repo / "f.txt").write_text("x")
+        subprocess.run(["git", "-C", str(repo), "add", "."], capture_output=True)
+        subprocess.run(["git", "-C", str(repo), "commit", "-m", "init"], capture_output=True)
+        registry["workstreams"]["target"]["project_dir"] = str(repo)
+        registry["workstreams"]["target"]["git"] = {"strategy": "branch", "branch": "feat/test"}
+        atomic_write(data_dir / "workstreams.json", json.dumps(registry, indent=2) + "\n")
+        try:
+            result = switch_workstream(data_dir=data_dir, conn=conn, to_name="target")
+            assert "git_warning" in result
+            assert "feat/test" in result["git_warning"]
+            assert "git_suggestion" in result
+        finally:
+            conn.close()
+
+
+def test_switch_worktree_returns_path():
+    """switch_workstream includes worktree_path for worktree-strategy targets."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path, data_dir, conn = _setup_git(tmpdir)
+        from relay_server.workstreams import switch_workstream, read_registry
+        wt_path = Path(tmpdir) / "worktree"
+        wt_path.mkdir()
+        registry = read_registry(data_dir)
+        registry["workstreams"]["target"]["git"] = {
+            "strategy": "worktree", "branch": "feat/wt",
+            "worktree_path": str(wt_path),
+        }
+        atomic_write(data_dir / "workstreams.json", json.dumps(registry, indent=2) + "\n")
+        try:
+            result = switch_workstream(data_dir=data_dir, conn=conn, to_name="target")
+            assert result.get("worktree_path") == str(wt_path)
+        finally:
+            conn.close()
+
+
+def test_switch_stash_reminder():
+    """switch_workstream includes stash_reminder when target has stash_ref."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path, data_dir, conn = _setup_git(tmpdir)
+        from relay_server.workstreams import switch_workstream, read_registry
+        repo = Path(tmpdir) / "repo"
+        repo.mkdir()
+        subprocess.run(["git", "init", str(repo)], capture_output=True)
+        subprocess.run(["git", "-C", str(repo), "config", "user.email", "t@t.com"], capture_output=True)
+        subprocess.run(["git", "-C", str(repo), "config", "user.name", "T"], capture_output=True)
+        (repo / "f.txt").write_text("x")
+        subprocess.run(["git", "-C", str(repo), "add", "."], capture_output=True)
+        subprocess.run(["git", "-C", str(repo), "commit", "-m", "init"], capture_output=True)
+        sha = subprocess.run(["git", "-C", str(repo), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+
+        registry = read_registry(data_dir)
+        registry["workstreams"]["target"]["project_dir"] = str(repo)
+        registry["workstreams"]["target"]["git"] = {
+            "strategy": "branch", "branch": "main",
+            "stash_ref": sha, "stash_message": "relay: target at 2026-03-22",
+        }
+        atomic_write(data_dir / "workstreams.json", json.dumps(registry, indent=2) + "\n")
+        try:
+            result = switch_workstream(data_dir=data_dir, conn=conn, to_name="target")
+            assert "stash_reminder" in result
+            assert sha[:7] in result["stash_reminder"]
+        finally:
+            conn.close()
+
+
+def test_switch_stores_stash_ref_on_from():
+    """switch_workstream stores stash_ref on from workstream when passed."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path, data_dir, conn = _setup_git(tmpdir)
+        from relay_server.workstreams import switch_workstream, read_registry
+        registry = read_registry(data_dir)
+        registry["workstreams"]["source"]["git"] = {"strategy": "branch", "branch": "main"}
+        atomic_write(data_dir / "workstreams.json", json.dumps(registry, indent=2) + "\n")
+        try:
+            switch_workstream(
+                data_dir=data_dir, conn=conn, to_name="target",
+                from_name="source", state_content="# State",
+                stash_ref="abc123def456",
+            )
+            reg = read_registry(data_dir)
+            assert reg["workstreams"]["source"]["git"]["stash_ref"] == "abc123def456"
+        finally:
+            conn.close()
+
+
+def test_switch_stale_stash_cleared():
+    """switch_workstream clears stash_ref if SHA no longer exists."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path, data_dir, conn = _setup_git(tmpdir)
+        from relay_server.workstreams import switch_workstream, read_registry
+        repo = Path(tmpdir) / "repo"
+        repo.mkdir()
+        subprocess.run(["git", "init", str(repo)], capture_output=True)
+        subprocess.run(["git", "-C", str(repo), "config", "user.email", "t@t.com"], capture_output=True)
+        subprocess.run(["git", "-C", str(repo), "config", "user.name", "T"], capture_output=True)
+        (repo / "f.txt").write_text("x")
+        subprocess.run(["git", "-C", str(repo), "add", "."], capture_output=True)
+        subprocess.run(["git", "-C", str(repo), "commit", "-m", "init"], capture_output=True)
+
+        registry = read_registry(data_dir)
+        registry["workstreams"]["target"]["project_dir"] = str(repo)
+        registry["workstreams"]["target"]["git"] = {
+            "strategy": "branch", "branch": "main",
+            "stash_ref": "deadbeef" * 5,
+            "stash_message": "stale stash",
+        }
+        atomic_write(data_dir / "workstreams.json", json.dumps(registry, indent=2) + "\n")
+        try:
+            result = switch_workstream(data_dir=data_dir, conn=conn, to_name="target")
+            assert "stash_reminder" not in result
+            reg = read_registry(data_dir)
+            assert "stash_ref" not in reg["workstreams"]["target"]["git"]
         finally:
             conn.close()

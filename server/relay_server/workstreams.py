@@ -290,6 +290,7 @@ def switch_workstream(
     session_id: str | None = None,
     hint_summary: list[str] | None = None,
     hint_decisions: list[str] | None = None,
+    stash_ref: str | None = None,
 ) -> dict:
     """Switch session from one workstream to another.
 
@@ -311,6 +312,15 @@ def switch_workstream(
             hint_summary=hint_summary,
             hint_decisions=hint_decisions,
         )
+
+    # Store stash_ref on from workstream if provided
+    if stash_ref and from_name:
+        registry = read_registry(data_dir)
+        from_entry = registry["workstreams"].get(from_name)
+        if from_entry and "git" in from_entry:
+            from_entry["git"]["stash_ref"] = stash_ref
+            from_entry["git"]["stash_message"] = f"relay: {from_name} at {utc_timestamp()}"
+            atomic_write(data_dir / "workstreams.json", json.dumps(registry, indent=2) + "\n")
 
     # Activate target
     registry = read_registry(data_dir)  # re-read after save
@@ -346,7 +356,7 @@ def switch_workstream(
         if extra_path.exists():
             supplementary[extra] = extra_path.read_text()
 
-    return {
+    result: dict = {
         "status": "switched",
         "from": from_name,
         "to": to_name,
@@ -354,6 +364,52 @@ def switch_workstream(
         "supplementary": supplementary,
         "project_dir": registry["workstreams"][to_name].get("project_dir", ""),
     }
+
+    # Git awareness for target workstream
+    target_entry = registry["workstreams"][to_name]
+    target_git = target_entry.get("git")
+    if target_git:
+        from . import git_ops
+        strategy = target_git.get("strategy")
+        project_dir = target_entry.get("project_dir", "")
+
+        if strategy == "branch":
+            expected_branch = target_git.get("branch")
+            if project_dir and expected_branch:
+                current_branch = git_ops.get_current_branch(Path(project_dir))
+                if current_branch and current_branch != expected_branch:
+                    result["git_warning"] = (
+                        f"Current branch '{current_branch}' doesn't match expected '{expected_branch}'"
+                    )
+                    result["git_suggestion"] = f"git checkout {expected_branch}"
+                elif git_ops.is_dirty(Path(project_dir)):
+                    result["dirty_warning"] = "Working tree has uncommitted changes"
+
+        elif strategy == "worktree":
+            wt_path = target_git.get("worktree_path")
+            if wt_path:
+                if Path(wt_path).exists():
+                    result["worktree_path"] = wt_path
+                else:
+                    result["git_warning"] = f"Worktree path does not exist: {wt_path}"
+
+        # Check stash_ref on target
+        target_stash_ref = target_git.get("stash_ref")
+        if target_stash_ref and project_dir:
+            if git_ops.validate_stash_ref(Path(project_dir), target_stash_ref):
+                stash_message = target_git.get("stash_message", "")
+                result["stash_reminder"] = (
+                    f"Stashed changes at {target_stash_ref[:7]}: {stash_message}"
+                ).strip(": ")
+            else:
+                # Stale stash — clear it from registry silently
+                registry = read_registry(data_dir)
+                target_git_entry = registry["workstreams"][to_name].get("git", {})
+                target_git_entry.pop("stash_ref", None)
+                target_git_entry.pop("stash_message", None)
+                atomic_write(data_dir / "workstreams.json", json.dumps(registry, indent=2) + "\n")
+
+    return result
 
 
 def update_workstream(

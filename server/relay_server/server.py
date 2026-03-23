@@ -1268,6 +1268,7 @@ def switch_workstream(
     session_id: str | None = None,
     hint_summary: list[str] | None = None,
     hint_decisions: list[str] | None = None,
+    stash_ref: str | None = None,
 ) -> dict:
     """Switch session to a different workstream. Saves current first if provided.
 
@@ -1281,6 +1282,7 @@ def switch_workstream(
         session_id: Current session UUID (from relay-session-id context)
         hint_summary: Bullets for current workstream session hint
         hint_decisions: Decisions for current workstream session hint
+        stash_ref: Git stash SHA to store on from workstream (if stashing before switch)
     """
     from .workstreams import get_data_dir
     from .workstreams import switch_workstream as _switch
@@ -1292,6 +1294,7 @@ def switch_workstream(
             data_dir=get_data_dir(), conn=conn, to_name=to_name, from_name=from_name,
             state_content=state_content, session_id=session_id,
             hint_summary=hint_summary, hint_decisions=hint_decisions,
+            stash_ref=stash_ref,
         )
     finally:
         conn.close()
