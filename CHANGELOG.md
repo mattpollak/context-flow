@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.12.3] - 2026-03-22
+
+### Changed
+- **Statusline git awareness** — Branch display in the statusline (and terminal title) now shows a mismatch indicator (`current ≠ expected`) when the active branch differs from the workstream's configured git branch, and a stash indicator (📦) when a stash ref is recorded in the workstream registry.
+
 ## [0.12.2] - 2026-03-22
 
 ### Added

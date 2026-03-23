@@ -82,15 +82,29 @@ if [ -n "$HOME" ] && [[ "$cwd" == "$HOME"* ]]; then
   display_cwd="~${cwd#$HOME}"
 fi
 
+# Build branch display with mismatch and stash indicators
+branch_display="${branch}"
+if [ -n "$branch" ] && [ -n "$workstream" ] && [ -f "$RELAY_REGISTRY" ] && command -v jq &>/dev/null; then
+  expected_branch=$(jq -r --arg ws "$workstream" '.workstreams[$ws].git.branch // empty' "$RELAY_REGISTRY" 2>/dev/null)
+  stash_ref=$(jq -r --arg ws "$workstream" '.workstreams[$ws].git.stash_ref // empty' "$RELAY_REGISTRY" 2>/dev/null)
+
+  if [ -n "$expected_branch" ] && [ "$expected_branch" != "$branch" ]; then
+    branch_display="${branch} ≠ ${expected_branch}"
+  fi
+  if [ -n "$stash_ref" ]; then
+    branch_display="${branch_display} 📦"
+  fi
+fi
+
 # Build status line: ~/path/to/dir (branch) │ workstream
 statusline="${display_cwd}"
-[ -n "$branch" ] && statusline="${statusline} (${branch})"
+[ -n "$branch_display" ] && statusline="${statusline} (${branch_display})"
 [ -n "$workstream" ] && statusline="${statusline} │ ${workstream}"
 
 # Set terminal title: dirname (branch) │ workstream
 if [ "$enable_title" = "true" ]; then
   title="${dirname}"
-  [ -n "$branch" ] && title="${title} (${branch})"
+  [ -n "$branch_display" ] && title="${title} (${branch_display})"
   [ -n "$workstream" ] && title="${title} │ ${workstream}"
 
   if [ -n "$ITERM_SESSION_ID" ]; then
