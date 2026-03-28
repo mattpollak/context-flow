@@ -20,3 +20,8 @@ dev = [
 
 [project.scripts]
 relay-server = "relay_server:main"
+
+[dependency-groups]
+dev = [
+    "pytest-asyncio>=1.3.0",
+]

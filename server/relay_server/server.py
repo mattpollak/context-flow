@@ -1182,10 +1182,10 @@ def save_workstream(
 
 
 @mcp.tool(annotations=_WRITE)
-def create_workstream(
-    name: str,
-    description: str,
+async def create_workstream(
     ctx: Context[ServerSession, AppContext],
+    name: str | None = None,
+    description: str | None = None,
     project_dir: str = "",
     color: str = "",
     git_strategy: str | None = None,
@@ -1193,6 +1193,8 @@ def create_workstream(
     worktree_path: str | None = None,
 ) -> dict:
     """Create a new workstream with initial state file.
+
+    If name and description are omitted, presents an interactive form to collect them.
 
     Args:
         name: Workstream name (lowercase, hyphens, e.g. "api-refactor")
@@ -1203,8 +1205,30 @@ def create_workstream(
         git_branch: Primary branch name. Auto-detected from project_dir if omitted.
         worktree_path: Absolute path for worktree. Auto-derived if omitted (sibling dir pattern).
     """
+    from .elicitation import WorkstreamCreateSchema, elicit_or_fallback
     from .workstreams import get_data_dir
     from .workstreams import create_workstream as _create
+
+    # If required fields missing, try elicitation
+    if name is None or description is None:
+        create_result = await elicit_or_fallback(
+            ctx,
+            "Create a new workstream",
+            WorkstreamCreateSchema,
+        )
+        if create_result is None:
+            if name is None:
+                return {"status": "error", "message": "name is required. Provide it directly or try again."}
+            if description is None:
+                return {"status": "error", "message": "description is required. Provide it directly or try again."}
+        else:
+            name = name or create_result.name
+            description = description or create_result.description
+            project_dir = project_dir or create_result.project_dir or ""
+            color = color or create_result.color or ""
+            if git_strategy is None and create_result.git_strategy and create_result.git_strategy != "none":
+                git_strategy = create_result.git_strategy
+
     return _create(
         data_dir=get_data_dir(), name=name, description=description,
         project_dir=project_dir, color=color,
@@ -1285,9 +1309,9 @@ def park_workstream(
 
 
 @mcp.tool(annotations=_WRITE)
-def switch_workstream(
-    to_name: str,
+async def switch_workstream(
     ctx: Context[ServerSession, AppContext],
+    to_name: str | None = None,
     from_name: str | None = None,
     state_content: str | None = None,
     session_id: str | None = None,
@@ -1300,8 +1324,11 @@ def switch_workstream(
     Both workstreams stay active. Returns the target workstream's state content
     and any supplementary files (plan.md, architecture.md).
 
+    If to_name is omitted, presents an interactive picker (or returns the list
+    for manual selection if the host doesn't support elicitation).
+
     Args:
-        to_name: Target workstream name
+        to_name: Target workstream name (omit for interactive picker)
         from_name: Current workstream name (if saving before switch)
         state_content: State to save for current workstream (required if from_name set)
         session_id: Current session UUID (from relay-session-id context)
@@ -1309,14 +1336,68 @@ def switch_workstream(
         hint_decisions: Decisions for current workstream session hint
         stash_ref: Git stash SHA to store on from workstream (if stashing before switch)
     """
-    from .workstreams import get_data_dir
+    from .elicitation import (
+        WorkstreamPickerSchema,
+        WorkstreamCreateSchema,
+        build_picker_enum,
+        elicit_or_fallback,
+        parse_picker_choice,
+    )
+    from .workstreams import get_data_dir, read_registry
     from .workstreams import switch_workstream as _switch
+    from .workstreams import create_workstream as _create
+
+    data_dir = get_data_dir()
+
+    # If no target specified, try elicitation
+    if to_name is None:
+        registry = read_registry(data_dir)
+        workstreams = registry.get("workstreams", {})
+        if not workstreams:
+            return {"status": "error", "message": "No workstreams found. Use create_workstream to create one."}
+
+        picker_result = await elicit_or_fallback(
+            ctx,
+            "Select a workstream to switch to",
+            WorkstreamPickerSchema,
+        )
+
+        if picker_result is None:
+            # Elicitation not supported or user cancelled — return list for LLM
+            from .workstreams import list_workstreams as _list
+            return {
+                "status": "pick_required",
+                "message": "Call switch_workstream again with to_name set to one of these:",
+                "workstreams": _list(data_dir=data_dir, format="json"),
+            }
+
+        chosen = parse_picker_choice(picker_result.workstream)
+        if chosen is None:
+            # User wants to create new — elicit creation form
+            create_result = await elicit_or_fallback(
+                ctx,
+                "Create a new workstream",
+                WorkstreamCreateSchema,
+            )
+            if create_result is None:
+                return {"status": "cancelled", "message": "Workstream creation cancelled."}
+            _create(
+                data_dir=data_dir,
+                name=create_result.name,
+                description=create_result.description,
+                project_dir=create_result.project_dir or "",
+                color=create_result.color or "",
+                git_strategy=create_result.git_strategy if create_result.git_strategy and create_result.git_strategy != "none" else None,
+            )
+            to_name = create_result.name
+        else:
+            to_name = chosen
 
     db_path = _get_db_path(ctx)
     conn = get_connection(db_path)
     try:
         return _switch(
-            data_dir=get_data_dir(), conn=conn, to_name=to_name, from_name=from_name,
+            data_dir=data_dir, conn=conn, to_name=to_name, from_name=from_name,
             state_content=state_content, session_id=session_id,
             hint_summary=hint_summary, hint_decisions=hint_decisions,
             stash_ref=stash_ref,
