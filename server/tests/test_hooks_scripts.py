@@ -103,13 +103,13 @@ def test_cwd_changed_matches_different_workstream(tmp_path):
 
     output = _run_hook_script(
         "cwd-changed.sh",
-        {"cwd": "/home/user/squadkeeper/src", "session_id": session_id},
+        {"cwd": "/home/user/relay", "new_cwd": "/home/user/squadkeeper/src", "session_id": session_id},
         env_overrides={"XDG_CONFIG_HOME": str(tmp_path)},
     )
     parsed = json.loads(output)
-    ctx = parsed["hookSpecificOutput"]["additionalContext"]
-    assert "squadkeeper" in ctx
-    assert "/relay:switch" in ctx
+    msg = parsed["systemMessage"]
+    assert "squadkeeper" in msg
+    assert "/relay:switch" in msg
 
 
 def test_cwd_changed_same_workstream_no_output(tmp_path):
@@ -137,7 +137,7 @@ def test_cwd_changed_same_workstream_no_output(tmp_path):
 
     output = _run_hook_script(
         "cwd-changed.sh",
-        {"cwd": "/home/user/relay/server", "session_id": session_id},
+        {"cwd": "/home/user/relay", "new_cwd": "/home/user/relay/server", "session_id": session_id},
         env_overrides={"XDG_CONFIG_HOME": str(tmp_path)},
     )
     assert output.strip() == ""
@@ -163,7 +163,7 @@ def test_cwd_changed_no_match_no_output(tmp_path):
 
     output = _run_hook_script(
         "cwd-changed.sh",
-        {"cwd": "/home/user/unrelated", "session_id": "some-session"},
+        {"cwd": "/home/user/relay", "new_cwd": "/home/user/unrelated", "session_id": "some-session"},
         env_overrides={"XDG_CONFIG_HOME": str(tmp_path)},
     )
     assert output.strip() == ""
@@ -201,9 +201,9 @@ def test_cwd_changed_deepest_match_wins(tmp_path):
 
     output = _run_hook_script(
         "cwd-changed.sh",
-        {"cwd": "/home/user/projects/child/src", "session_id": session_id},
+        {"cwd": "/home/user/other", "new_cwd": "/home/user/projects/child/src", "session_id": session_id},
         env_overrides={"XDG_CONFIG_HOME": str(tmp_path)},
     )
     parsed = json.loads(output)
-    ctx = parsed["hookSpecificOutput"]["additionalContext"]
-    assert '"child"' in ctx
+    msg = parsed["systemMessage"]
+    assert '"child"' in msg

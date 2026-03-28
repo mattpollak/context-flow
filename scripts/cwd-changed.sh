@@ -11,7 +11,7 @@ if ! command -v jq &>/dev/null; then
   exit 0
 fi
 
-NEW_CWD=$(echo "$INPUT" | jq -r '.cwd // empty' 2>/dev/null || true)
+NEW_CWD=$(echo "$INPUT" | jq -r '.new_cwd // .cwd // empty' 2>/dev/null || true)
 SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // empty' 2>/dev/null || true)
 
 if [ -z "$NEW_CWD" ]; then
@@ -58,16 +58,11 @@ if [ -z "$BEST_MATCH" ] || [ "$BEST_MATCH" = "$CURRENT_WS" ]; then
 fi
 
 if [ -n "$CURRENT_WS" ]; then
-  CONTEXT="relay: The working directory matches workstream \"${BEST_MATCH}\" (project: ${BEST_DIR}). Current workstream is \"${CURRENT_WS}\". Ask the user if they'd like to switch: use /relay:switch ${BEST_MATCH}"
+  MSG="[relay] cwd drifted to \"${BEST_MATCH}\" (was \"${CURRENT_WS}\"). /relay:switch ${BEST_MATCH}"
 else
-  CONTEXT="relay: The working directory matches workstream \"${BEST_MATCH}\" (project: ${BEST_DIR}). No workstream is currently attached. Ask the user if they'd like to attach: use /relay:switch ${BEST_MATCH}"
+  MSG="[relay] cwd matches \"${BEST_MATCH}\". /relay:switch ${BEST_MATCH}"
 fi
 
-jq -n --arg ctx "$CONTEXT" '{
-  hookSpecificOutput: {
-    hookEventName: "CwdChanged",
-    additionalContext: $ctx
-  }
-}'
+jq -n --arg msg "$MSG" '{ systemMessage: $msg }'
 
 exit 0

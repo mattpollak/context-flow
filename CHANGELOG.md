@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.15.2] - 2026-03-28
+
+### Fixed
+- **CwdChanged hook reads wrong field** — Read `new_cwd` instead of `cwd` (which is the project root, not the changed-to directory)
+- **CwdChanged hook uses unsupported output** — Switched from `additionalContext` (not supported for CwdChanged) to `systemMessage` (brief status line notification)
+- **Elicitation picker sort order** — Active workstreams sort first, then parked; completed workstreams hidden from dropdown (still switchable by name)
+- **Switch skill bypasses elicitation** — Skill now omits `to_name` to trigger the tool's built-in picker instead of manually listing and asking
+
 ## [0.15.1] - 2026-03-28
 
 ### Fixed

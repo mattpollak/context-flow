@@ -21,10 +21,19 @@ class WorkstreamCreateSchema(BaseModel):
 
 
 def build_picker_enum(workstreams: dict) -> list[str]:
-    """Build the enum list for workstream picker from registry data."""
+    """Build the enum list for workstream picker from registry data.
+
+    Sorted by status (active first, then parked, then completed), then by name.
+    """
+    status_order = {"active": 0, "parked": 1}
     choices = []
-    for name, ws in sorted(workstreams.items()):
+    for name, ws in sorted(
+        workstreams.items(),
+        key=lambda item: (status_order.get(item[1].get("status", "unknown"), 99), item[0]),
+    ):
         status = ws.get("status", "unknown")
+        if status == "completed":
+            continue
         choices.append(f"{name} ({status})")
     choices.append("+ Create new...")
     return choices

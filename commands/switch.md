@@ -9,12 +9,12 @@ Switch this session from the current workstream to the one named `$ARGUMENTS`. B
 
 ## Steps
 
-1. **Parse arguments.** The target workstream name is `$ARGUMENTS`. If empty, call `list_workstreams` to show available workstreams, then ask the user which one to switch to.
+1. **Parse arguments.** The target workstream name is `$ARGUMENTS`.
 
 2. **Switch.** Call `switch_workstream`:
    ```
    switch_workstream(
-     to_name="<target>",
+     to_name="<target or omit for interactive picker>",
      from_name="<current workstream from session context>",
      state_content="<state for current workstream>",
      session_id="<from relay-session-id context>",
@@ -22,7 +22,8 @@ Switch this session from the current workstream to the one named `$ARGUMENTS`. B
      hint_decisions=["<decisions if any>"]
    )
    ```
-   If no current workstream is attached (no `relay:` line in context), omit `from_name` and `state_content`.
+   - If `$ARGUMENTS` is empty, **omit `to_name`** — the tool will show an interactive picker (elicitation dropdown). If elicitation is unsupported, the tool returns `status: "pick_required"` with a list; call `switch_workstream` again with the user's choice.
+   - If no current workstream is attached (no `relay:` line in context), omit `from_name` and `state_content`.
 
    The response includes `target_state` (the new workstream's state.md content), `supplementary` (plan.md, architecture.md if they exist), and `project_dir`.
 
